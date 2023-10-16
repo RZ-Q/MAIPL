@@ -36,6 +36,12 @@ class QLearner:
 
     def train(self, batch: EpisodeBatch, t_env: int, episode_num: int):
         # Get the relevant quantities
+        """ TODO:(for highlight):
+        rewards shape [bs, ep_len, 1]
+        actions shape [bs, ep_len, num_agent, 1]
+        avail_actions shape [bs, ep_len, num_agent, num_action]
+        terminated shape [bs, ep_len, 1]
+        """
         rewards = batch["reward"][:, :-1]
         actions = batch["actions"][:, :-1]
         terminated = batch["terminated"][:, :-1].float()

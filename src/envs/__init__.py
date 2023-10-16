@@ -1,5 +1,6 @@
 from functools import partial
-from smac.env import MultiAgentEnv, StarCraft2Env
+from smac.env import MultiAgentEnv
+from .starcraft2 import StarCraft2Env
 import sys
 import os
 
