@@ -4,6 +4,7 @@ from modules.mixers.vdn import VDNMixer
 from modules.mixers.qmix import QMixer
 import torch as th
 from torch.optim import RMSprop
+from components.preference import ScriptPreferences
 
 
 class QLearner_differ_perference:
@@ -35,6 +36,8 @@ class QLearner_differ_perference:
 
         self.log_stats_t = -self.args.learner_log_interval - 1
 
+        self.script_preferences = ScriptPreferences(args=self.args)
+
     def train(self, batch: EpisodeBatch, t_env: int, episode_num: int):
         # Get the relevant quantities
         """ TODO:(for highlight):
@@ -46,6 +49,7 @@ class QLearner_differ_perference:
         mac_out shape [bs, ep_len+1, num_agent, num_action]
         chosen_action_qvals before mixer shape [bs, ep_len, num_agents]
         target_mac_out shape [bs, ep_len, num_agent, num_action]
+        states shape [bs, ep_len, state_size]
         """
         rewards = batch["reward"][:, :-1]
         actions = batch["actions"][:, :-1]
@@ -55,6 +59,7 @@ class QLearner_differ_perference:
         avail_actions = batch["avail_actions"]
         # add individual terminated info
         indi_terminated = batch["indi_terminated"][:, :-1].float()
+        states = batch["state"][:, :-1] 
 
         # Calculate estimated Q-Values
         mac_out = []
@@ -178,6 +183,9 @@ class QLearner_differ_perference:
 
             self.log_stats_t = t_env
 
+    def cal_preference_loss(self, q_rewards, preferences):
+        pass
+    
     # def cal_indi_reward(grad_qtot_qi, td_error, chosen_action_qvals, target_max_qvals):
     def cal_indi_reward(self, grad_qtot_qi, mixer_td_error, qi, target_qi, indi_terminated):
         # input: grad_qtot_qi (B,T,n_agents)  mixer_td_error (B,T,1)  qi (B,T,n_agents)  indi_terminated (B,T,n_agents)
