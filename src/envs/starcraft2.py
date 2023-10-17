@@ -1707,10 +1707,12 @@ class StarCraft2Env(MultiAgentEnv):
         return env_info
     
     def get_indi_terminated(self):
-        indi_terminated = []
-        for al_id, al_unit in self.agents.items():
-            if al_unit.health >0:
-                indi_terminated.append(True)
+        """Returns the terminated of all agents in a list."""
+        terminate = []
+        for agent_id in range(self.n_agents):
+            unit = self.get_unit_by_id(agent_id)
+            if unit.health > 0:
+                terminate.append(0)
             else:
-                indi_terminated.append(False)
-        return tuple(indi_terminated)
+                terminate.append(1)
+        return terminate
