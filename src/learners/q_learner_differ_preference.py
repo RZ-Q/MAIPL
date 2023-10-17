@@ -37,6 +37,7 @@ class QLearner_differ_perference:
         self.log_stats_t = -self.args.learner_log_interval - 1
 
         self.script_preferences = ScriptPreferences(args=self.args)
+        self.CEloss = th.nn.CrossEntropyLoss()
 
     def train(self, batch: EpisodeBatch, t_env: int, episode_num: int):
         # Get the relevant quantities
@@ -135,6 +136,7 @@ class QLearner_differ_perference:
         mixer_grad_norm = th.nn.utils.clip_grad_norm_(self.mixer_params, self.args.grad_norm_clip)
         # grad_norm = th.nn.utils.clip_grad_norm_(self.params, self.args.grad_norm_clip)
         self.mixer_optimiser.step()
+
         # q_rewards shape [bs, ep_len, num_agents]
         q_rewards = self.cal_indi_reward(grad_qtot_qi, td_error, chosen_action_qvals, target_max_qvals, indi_terminated) #(B,T,n_agents)
         q_rewards_clone = q_rewards.clone().detach()
@@ -155,6 +157,12 @@ class QLearner_differ_perference:
 
         # Normal L2 loss, take mean over actual data
         q_loss = (masked_q_td_error ** 2).sum() / q_mask.sum()
+
+        # preference loss
+        preference_labels = self.script_preferences.produce_labels(states, actions)
+        preference_loss = self.cal_preference_loss(q_rewards, preference_labels, self.args.n_agents)
+
+        q_loss = q_loss + self.args.lamda * preference_loss
 
         # Optimise
         self.q_optimiser.zero_grad()
@@ -183,8 +191,21 @@ class QLearner_differ_perference:
 
             self.log_stats_t = t_env
 
-    def cal_preference_loss(self, q_rewards, preferences):
-        pass
+    def cal_preference_loss(self, q_rewards, preference_labels, agent_num):
+        # q_rewards [bs, seq_len, n_agent]
+        # preference_labels [bs, C_n_agent^2]
+        q_rewards = q_rewards.sum(dim=1) # [bs, n_agent]
+        preference_loss = []
+        for i in range(agent_num):
+            for j in range(i, agent_num):
+                r_i = q_rewards[:, i].unsqueeze(-1)
+                r_j = q_rewards[:, j].unsqueeze(-1)
+                r_i_j = th.cat([r_i, r_j], axis=-1)
+                labels = preference_labels[:, i+j].long()
+                loss = self.CEloss(r_i_j, labels)
+                preference_loss.append(loss)
+        
+        return sum(preference_loss) / len(preference_loss)
     
     # def cal_indi_reward(grad_qtot_qi, td_error, chosen_action_qvals, target_max_qvals):
     def cal_indi_reward(self, grad_qtot_qi, mixer_td_error, qi, target_qi, indi_terminated):

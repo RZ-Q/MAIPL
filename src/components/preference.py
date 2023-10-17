@@ -5,6 +5,7 @@ class ScriptPreferences:
     def __init__(self, args) -> None:
         self.args = args
         self.map_name = args.env_args["map_name"]
+        self.preference_type = args.preference_type
 
     def process_states(self, states: torch.Tensor, actions: torch.Tensor):
         # states shape [bs, ep_len, state_size]
@@ -13,13 +14,13 @@ class ScriptPreferences:
         if self.map_name == "3m":
             agent_num = 3
             agents_health = torch.index_select(
-                states, dim=-1, index=torch.tensor([0, 4, 8])
+                states, dim=-1, index=torch.tensor([0, 4, 8]).to(self.args.device)
             )
             agents_cooldown = torch.index_select(
-                states, dim=-1, index=torch.tensor([1, 5, 9])
+                states, dim=-1, index=torch.tensor([1, 5, 9]).to(self.args.device)
             )
             enemies_health = torch.index_select(
-                states, dim=-1, index=torch.tensor([12, 15, 18])
+                states, dim=-1, index=torch.tensor([12, 15, 18]).to(self.args.device)
             )
             actions = actions.squeeze(-1)  # Remove last dim
 
@@ -35,12 +36,15 @@ class ScriptPreferences:
         preferences = []
         for i in range(agent_num):
             for j in range(i, agent_num):
-                # TODO: fix preferences
-                if agents_health[:, -1, i] > agents_health[:, -1, j]:
-                    preferences.append(0)
-                elif agents_health[:, -1, i] < agents_health[:, -1, j]:
-                    preferences.append(1)
-                else:
-                    preferences.append(0.5)
-        return preferences
+                labels = 0.5 * (agents_health[:, -1, i] == agents_health[:, -1, j])
+                labels += 1.0 * (agents_health[:, -1, i] < agents_health[:, -1, j]) 
+                preferences.append(labels)
+        
+        return torch.stack(preferences, dim=-1)
+    
+    def produce_labels(self, states: torch.Tensor, actions: torch.Tensor):
+        if self.preference_type == 'high_health':
+            return self.high_health_preference(states, actions)
+        else:
+            return self.high_health_preference(states, actions)
 
