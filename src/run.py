@@ -31,16 +31,21 @@ def run(_run, _config, _log):
     _log.info("\n\n" + experiment_params + "\n")
 
     # configure tensorboard logger
-    if hasattr(args,'lamda'):
-        unique_token = "{}__{}__lamda{}__{}".format(
+    if hasattr(args, "lamda"):
+        unique_token = "{}__{}__{}__lamda{}__{}__{}".format(
             args.name,
+            args.env_args["map_name"],
             args.preference_type,
             args.lamda,
+            args.seed,
             datetime.datetime.now().strftime("%Y-%m-%d_%H-%M-%S"),
         )
     else:
-        unique_token = "{}__{}".format(
-            args.name, datetime.datetime.now().strftime("%Y-%m-%d_%H-%M-%S")
+        unique_token = "{}__{}__{}__{}".format(
+            args.name,
+            args.env_args["map_name"],
+            args.seed,
+            datetime.datetime.now().strftime("%Y-%m-%d_%H-%M-%S"),
         )
     args.unique_token = unique_token
     if args.use_tensorboard:

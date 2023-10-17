@@ -25,5 +25,6 @@ hypernet_embed: 64
 name: "qdiffer_preference"
 
 # preference config
-lamda: 1
+lamda: 0.5
 preference_type: 'high_health'
+seed: 147971273

@@ -20,6 +20,8 @@ class EpisodeRunner:
 
         self.train_returns = []
         self.test_returns = []
+        self.train_healths = []
+        self.test_healths = []
         self.train_stats = {}
         self.test_stats = {}
 
@@ -81,6 +83,12 @@ class EpisodeRunner:
 
             self.t += 1
 
+            if terminated:
+                agents_health = self.env.get_allyunit_health()
+        
+        cur_health = self.test_healths if test_mode else self.train_healths
+        cur_health.append(agents_health)
+
         last_data = {
             "state": [self.env.get_state()],
             "avail_actions": [self.env.get_avail_actions()],
@@ -105,18 +113,19 @@ class EpisodeRunner:
         cur_returns.append(episode_return)
 
         if test_mode and (len(self.test_returns) == self.args.test_nepisode):
-            self._log(cur_returns, cur_stats, log_prefix)
+            self._log(cur_returns, cur_stats, cur_health, log_prefix)
         elif self.t_env - self.log_train_stats_t >= self.args.runner_log_interval:
-            self._log(cur_returns, cur_stats, log_prefix)
+            self._log(cur_returns, cur_stats, cur_health, log_prefix)
             if hasattr(self.mac.action_selector, "epsilon"):
                 self.logger.log_stat("epsilon", self.mac.action_selector.epsilon, self.t_env)
             self.log_train_stats_t = self.t_env
 
         return self.batch
 
-    def _log(self, returns, stats, prefix):
+    def _log(self, returns, stats, healths, prefix):
         self.logger.log_stat(prefix + "return_mean", np.mean(returns), self.t_env)
         self.logger.log_stat(prefix + "return_std", np.std(returns), self.t_env)
+        self.logger.log_stat(prefix + "healths_mean", np.mean(healths), self.t_env)
         returns.clear()
 
         for k, v in stats.items():

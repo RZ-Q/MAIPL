@@ -80,6 +80,8 @@ def config_copy(config):
 
 
 if __name__ == '__main__':
+    import torch
+    torch.set_num_threads(1)
     params = deepcopy(sys.argv)
 
     # Get the defaults from default.yaml
