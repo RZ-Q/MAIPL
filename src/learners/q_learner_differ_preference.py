@@ -138,7 +138,8 @@ class QLearner_differ_perference:
         self.mixer_optimiser.step()
 
         # q_rewards shape [bs, ep_len, num_agents]
-        q_rewards = self.cal_indi_reward(grad_qtot_qi, td_error, chosen_action_qvals, target_max_qvals, indi_terminated) #(B,T,n_agents)
+        # TODO:(for highlight) td_error cannot be backward again
+        q_rewards = self.cal_indi_reward(grad_qtot_qi, td_error.clone().detach(), chosen_action_qvals, target_max_qvals, indi_terminated) #(B,T,n_agents)
         q_rewards_clone = q_rewards.clone().detach()
 
         # Calculate 1-step Q-Learning targets
@@ -162,11 +163,11 @@ class QLearner_differ_perference:
         preference_labels = self.script_preferences.produce_labels(states, actions)
         preference_loss = self.cal_preference_loss(q_rewards, preference_labels, self.args.n_agents)
 
-        q_loss = q_loss + self.args.lamda * preference_loss
+        q_total_loss = q_loss + self.args.lamda * preference_loss
 
         # Optimise
         self.q_optimiser.zero_grad()
-        q_loss.backward()
+        q_total_loss.backward()
         q_grad_norm = th.nn.utils.clip_grad_norm_(self.q_params, self.args.grad_norm_clip)
         self.q_optimiser.step()
 
