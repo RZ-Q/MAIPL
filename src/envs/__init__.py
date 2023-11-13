@@ -1,8 +1,11 @@
 from functools import partial
 from smac.env import MultiAgentEnv
+from .multiagentenv import MultiAgentEnv
 from .starcraft2 import StarCraft2Env
 import sys
 import os
+
+from .overcooked_env import OvercookEnv
 
 def env_fn(env, **kwargs) -> MultiAgentEnv:
     return env(**kwargs)

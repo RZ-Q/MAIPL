@@ -451,6 +451,7 @@ class StarCraft2Env(MultiAgentEnv):
 
     def step(self, actions):
         """A single environment step. Returns reward, terminated, info."""
+        # actions size (num_agents,)
         actions_int = [int(a) for a in actions]
 
         self.last_action = np.eye(self.n_actions)[np.array(actions_int)]

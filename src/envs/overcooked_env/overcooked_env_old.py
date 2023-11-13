@@ -4,15 +4,30 @@ from easydict import EasyDict
 import gym
 import copy
 import numpy as np
+import torch
 
 from overcooked_ai_py.mdp.actions import Action, Direction
-from overcooked_ai_py.mdp.overcooked_mdp import PlayerState, OvercookedGridworld, OvercookedState, ObjectState, \
-    SoupState, Recipe
+from overcooked_ai_py.mdp.overcooked_mdp import (
+    PlayerState,
+    OvercookedGridworld,
+    OvercookedState,
+    ObjectState,
+    SoupState,
+    Recipe,
+)
 from overcooked_ai_py.mdp.overcooked_env import OvercookedEnv, DEFAULT_ENV_PARAMS
+from overcooked_ai_py.planning.planners import (
+    MediumLevelActionManager,
+    # MediumLevelPlanner,
+    MotionPlanner,
+    NO_COUNTERS_PARAMS,
+)
 
 from utils import deep_merge_dicts
 
-OvercookEnvTimestep = namedtuple('OvercookEnvTimestep', ['obs', 'reward', 'done', 'info'])
+OvercookEnvTimestep = namedtuple(
+    "OvercookEnvTimestep", ["obs", "reward", "done", "info"]
+)
 
 # n, s = Direction.NORTH, Direction.SOUTH
 # e, w = Direction.EAST, Direction.WEST
@@ -20,7 +35,7 @@ OvercookEnvTimestep = namedtuple('OvercookEnvTimestep', ['obs', 'reward', 'done'
 # Action.ALL_ACTIONS: [n, s, e, w, stay, interact]
 
 
-class OvercookEnv():
+class OvercookEnv:
     config = EasyDict(
         dict(
             env_name="cramped_room",
@@ -39,7 +54,9 @@ class OvercookEnv():
         self._action_mask = self._cfg.action_mask
         self._shape_reward = self._cfg.shape_reward
         self.mdp = OvercookedGridworld.from_layout_name(self._env_name)
-        self.base_env = OvercookedEnv.from_mdp(self.mdp, horizon=self._horizon, info_level=0)
+        self.base_env = OvercookedEnv.from_mdp(
+            self.mdp, horizon=self._horizon, info_level=0
+        )
 
         # rightnow overcook environment encoding only support 2 agent game
         self.agent_num = 2
@@ -47,6 +64,10 @@ class OvercookEnv():
         self.action_space = gym.spaces.Discrete(len(Action.ALL_ACTIONS))
         # set up obs shape
         featurize_fn = lambda mdp, state: mdp.lossless_state_encoding(state)
+        # mlam = MediumLevelActionManager.from_pickle_or_compute(
+        #     self.mdp, NO_COUNTERS_PARAMS, force_compute=False
+        # )
+        # featurize_fn = lambda mdp, state: mdp.featurize_state(state, mlam)
         self.featurize_fn = featurize_fn
         dummy_mdp = self.base_env.mdp
         dummy_state = dummy_mdp.get_standard_start_state()
@@ -55,18 +76,25 @@ class OvercookEnv():
         if self._concat_obs:
             obs_shape = (obs_shape[0] * 2, *obs_shape[1:])
         else:
-            obs_shape = (2, ) + obs_shape
-        self.observation_space = gym.spaces.Box(low=0, high=1, shape=obs_shape, dtype=np.int64)
+            obs_shape = (2,) + obs_shape
+        self.observation_space = gym.spaces.Box(
+            low=0, high=1, shape=obs_shape, dtype=np.int64
+        )
         if self._action_mask:
             self.observation_space = gym.spaces.Dict(
                 {
-                    'agent_state': self.observation_space,
-                    'action_mask': gym.spaces.Box(
-                        low=0, high=1, shape=(self.agent_num, self.action_dim), dtype=np.int64
-                    )
+                    "agent_state": self.observation_space,
+                    "action_mask": gym.spaces.Box(
+                        low=0,
+                        high=1,
+                        shape=(self.agent_num, self.action_dim),
+                        dtype=np.int64,
+                    ),
                 }
             )
-        self.reward_space = gym.spaces.Box(low=0, high=100, shape=(1, ), dtype=np.float32)
+        self.reward_space = gym.spaces.Box(
+            low=0, high=100, shape=(1,), dtype=np.float32
+        )
 
     def seed(self, seed: int, dynamic_seed: bool = True) -> None:
         self._seed = seed
@@ -81,7 +109,28 @@ class OvercookEnv():
         return [self.action_space.sample() for _ in range(self.agent_num)]
 
     def step(self, action):
-        assert all(self.action_space.contains(a) for a in action), "%r (%s) invalid" % (action, type(action))
+        """
+        step decription:
+        next_state:
+            Players: ((1, 2) facing (0, -1) holding None, (3, 1) facing (0, -1) holding None),
+            Objects: [], Bonus orders: [] All orders: [('onion', 'onion', 'onion')] Timestep: 1
+        action shape (2,)
+        Action.INDEX_TO_ACTION [(0, -1), (0, 1), (1, 0), (-1, 0), (0, 0), 'interact']
+        reward shape (1,)
+        done true/false
+        Each agent's obs shape is (layout_width, layout_height, 26) , i.e. (5, 4, 26) for cramped_room.
+        ob_p0 shape (26, 5, 4)
+        action_mask shape (2, 6)
+        OvercookEnvTimestep is a class:
+            obs: agent_state, action_mask
+            reward, done,
+            info: agent_infos, sparse_r_by_agent, shaped_r_by_agent, phi_s, phi_s_prime,
+                policy_agent_idx, eval_episode_return, other_agent_env_idx
+        """
+        assert all(self.action_space.contains(a) for a in action), "%r (%s) invalid" % (
+            action,
+            type(action),
+        )
         agent_action, other_agent_action = [Action.INDEX_TO_ACTION[a] for a in action]
 
         if self.agent_idx == 0:
@@ -93,8 +142,8 @@ class OvercookEnv():
         reward = np.array([float(reward)])
         self._eval_episode_return += reward
         if self._shape_reward:
-            self._eval_episode_return += sum(env_info['shaped_r_by_agent'])
-            reward += sum(env_info['shaped_r_by_agent'])
+            self._eval_episode_return += sum(env_info["shaped_r_by_agent"])
+            reward += sum(env_info["shaped_r_by_agent"])
 
         ob_p0, ob_p1 = self.featurize_fn(self.mdp, next_state)
         ob_p0, ob_p1 = self.obs_preprocess(ob_p0), self.obs_preprocess(ob_p1)
@@ -116,7 +165,7 @@ class OvercookEnv():
             obs = {
                 "agent_state": both_agents_ob,
                 # "overcooked_state": self.base_env.state,
-                "action_mask": action_mask
+                "action_mask": action_mask,
             }
         else:
             obs = both_agents_ob
@@ -172,7 +221,7 @@ class OvercookEnv():
         return "DI-engine Overcooked Env"
 
 
-class OvercookGameEnv():
+class OvercookGameEnv:
     config = EasyDict(
         dict(
             env_name="cramped_room",
@@ -191,7 +240,9 @@ class OvercookGameEnv():
         self._action_mask = self._cfg.action_mask
         self._shape_reward = self._cfg.shape_reward
         self.mdp = OvercookedGridworld.from_layout_name(self._env_name)
-        self.base_env = OvercookedEnv.from_mdp(self.mdp, horizon=self._horizon, info_level=0)
+        self.base_env = OvercookedEnv.from_mdp(
+            self.mdp, horizon=self._horizon, info_level=0
+        )
 
         # rightnow overcook environment encoding only support 2 agent game
         self.agent_num = 2
@@ -207,19 +258,26 @@ class OvercookGameEnv():
         if self._concat_obs:
             obs_shape = (obs_shape[0] * 2, *obs_shape[1:])
         else:
-            obs_shape = (2, ) + obs_shape
-        self.observation_space = gym.spaces.Box(low=0, high=1, shape=obs_shape, dtype=np.int64)
+            obs_shape = (2,) + obs_shape
+        self.observation_space = gym.spaces.Box(
+            low=0, high=1, shape=obs_shape, dtype=np.int64
+        )
         if self._action_mask:
             self.observation_space = gym.spaces.Dict(
                 {
-                    'agent_state': self.observation_space,
-                    'action_mask': gym.spaces.Box(
-                        low=0, high=1, shape=(self.agent_num, self.action_dim), dtype=np.int64
-                    )
+                    "agent_state": self.observation_space,
+                    "action_mask": gym.spaces.Box(
+                        low=0,
+                        high=1,
+                        shape=(self.agent_num, self.action_dim),
+                        dtype=np.int64,
+                    ),
                 }
             )
 
-        self.reward_space = gym.spaces.Box(low=0, high=100, shape=(1, ), dtype=np.float32)
+        self.reward_space = gym.spaces.Box(
+            low=0, high=100, shape=(1,), dtype=np.float32
+        )
 
     def seed(self, seed: int, dynamic_seed: bool = True) -> None:
         self._seed = seed
@@ -234,7 +292,10 @@ class OvercookGameEnv():
         return [self.action_space.sample() for _ in range(self.agent_num)]
 
     def step(self, action):
-        assert all(self.action_space.contains(a) for a in action), "%r (%s) invalid" % (action, type(action))
+        assert all(self.action_space.contains(a) for a in action), "%r (%s) invalid" % (
+            action,
+            type(action),
+        )
         agent_action, other_agent_action = [Action.INDEX_TO_ACTION[a] for a in action]
 
         if self.agent_idx == 0:
@@ -247,8 +308,8 @@ class OvercookGameEnv():
         reward = np.array([float(reward)])
         self._eval_episode_return += reward
         if self._shape_reward:
-            self._eval_episode_return += sum(env_info['shaped_r_by_agent'])
-            reward += sum(env_info['shaped_r_by_agent'])
+            self._eval_episode_return += sum(env_info["shaped_r_by_agent"])
+            reward += sum(env_info["shaped_r_by_agent"])
         ob_p0, ob_p1 = self.featurize_fn(self.mdp, next_state)
         ob_p0, ob_p1 = self.obs_preprocess(ob_p0), self.obs_preprocess(ob_p1)
         if self.agent_idx == 0:
@@ -281,7 +342,7 @@ class OvercookGameEnv():
         self.mdp = self.base_env.mdp
         # random init agent index
         self.agent_idx = np.random.choice([0, 1])
-        #fix init agent index
+        # fix init agent index
         self.agent_idx = 0
         ob_p0, ob_p1 = self.featurize_fn(self.mdp, self.base_env.state)
         ob_p0, ob_p1 = self.obs_preprocess(ob_p0), self.obs_preprocess(ob_p1)
