@@ -12,6 +12,7 @@ def env_fn(env, **kwargs) -> MultiAgentEnv:
 
 REGISTRY = {}
 REGISTRY["sc2"] = partial(env_fn, env=StarCraft2Env)
+REGISTRY["overcooked"] = partial(env_fn, env=OvercookEnv)
 
 if sys.platform == "linux":
     os.environ.setdefault("SC2PATH",
