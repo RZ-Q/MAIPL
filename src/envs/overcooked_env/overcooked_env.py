@@ -93,11 +93,11 @@ class OvercookEnv(MultiAgentEnv):
         # env_info["policy_agent_idx"] = 0
         env_info["eval_episode_return"] = self._eval_episode_return
         # env_info["other_agent_env_idx"] = 1
-        new_env_info["sparse_r1"] = env_info["sparse_r_by_agent"][0]
-        new_env_info["sparse_r2"] = env_info["sparse_r_by_agent"][1]
         new_env_info["shaped_r1"] = env_info["shaped_r_by_agent"][0]
         new_env_info["shaped_r2"] = env_info["shaped_r_by_agent"][1]
-
+        new_env_info["sparse_r1"] = env_info["sparse_r_by_agent"][0]
+        new_env_info["sparse_r2"] = env_info["sparse_r_by_agent"][1]
+        new_env_info["eval_episode_return"] = self._eval_episode_return
 
         return reward, terminated, new_env_info
 

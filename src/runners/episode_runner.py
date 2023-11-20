@@ -25,6 +25,12 @@ class EpisodeRunner:
         self.train_stats = {}
         self.test_stats = {}
 
+        # for overcooked env
+        self.train_r1 = []
+        self.test_r1 = []
+        self.train_r2 = []
+        self.test_r2 = []
+
         # Log the first run
         self.log_train_stats_t = -1000000
 
@@ -52,6 +58,8 @@ class EpisodeRunner:
 
         terminated = False
         episode_return = 0
+        episode_r1 = 0
+        episode_r2 = 0
         self.mac.init_hidden(batch_size=self.batch_size)
 
         while not terminated:
@@ -70,6 +78,8 @@ class EpisodeRunner:
 
             reward, terminated, env_info = self.env.step(actions[0])
             episode_return += reward
+            episode_r1 += env_info["shaped_r1"]
+            episode_r2 += env_info["shaped_r2"]
 
             post_transition_data = {
                 "actions": actions,
@@ -103,6 +113,8 @@ class EpisodeRunner:
         #TODO: add overcooked more infos in log stats
         cur_stats = self.test_stats if test_mode else self.train_stats
         cur_returns = self.test_returns if test_mode else self.train_returns
+        cur_r1 = self.test_r1 if test_mode else self.train_r1
+        cur_r2 = self.test_r2 if test_mode else self.train_r2
         log_prefix = "test_" if test_mode else ""
         # cur_stats.update({k: cur_stats.get(k, 0) + env_info.get(k, 0) for k in set(cur_stats) | set(env_info)})
         for k in set(cur_stats) | set(env_info):
@@ -117,20 +129,24 @@ class EpisodeRunner:
             self.t_env += self.t
 
         cur_returns.append(episode_return)
+        cur_r1.append(episode_r1)
+        cur_r2.append(episode_r2)
 
         if test_mode and (len(self.test_returns) == self.args.test_nepisode):
-            self._log(cur_returns, cur_stats, log_prefix)
+            self._log(cur_returns, cur_r1, cur_r2, cur_stats, log_prefix)
         elif self.t_env - self.log_train_stats_t >= self.args.runner_log_interval:
-            self._log(cur_returns, cur_stats, log_prefix)
+            self._log(cur_returns, cur_r1, cur_r2, cur_stats, log_prefix)
             if hasattr(self.mac.action_selector, "epsilon"):
                 self.logger.log_stat("epsilon", self.mac.action_selector.epsilon, self.t_env)
             self.log_train_stats_t = self.t_env
 
         return self.batch
 
-    def _log(self, returns, stats, prefix):
+    def _log(self, returns, r1, r2, stats, prefix):
         self.logger.log_stat(prefix + "return_mean", np.mean(returns), self.t_env)
         self.logger.log_stat(prefix + "return_std", np.std(returns), self.t_env)
+        self.logger.log_stat(prefix + "return_1_mean", np.std(r1), self.t_env)
+        self.logger.log_stat(prefix + "return_2_mean", np.std(r2), self.t_env)
         # self.logger.log_stat(prefix + "healths_mean", np.mean(healths), self.t_env)
         returns.clear()
 
