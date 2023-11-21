@@ -145,8 +145,8 @@ class EpisodeRunner:
     def _log(self, returns, r1, r2, stats, prefix):
         self.logger.log_stat(prefix + "return_mean", np.mean(returns), self.t_env)
         self.logger.log_stat(prefix + "return_std", np.std(returns), self.t_env)
-        self.logger.log_stat(prefix + "return_1_mean", np.std(r1), self.t_env)
-        self.logger.log_stat(prefix + "return_2_mean", np.std(r2), self.t_env)
+        self.logger.log_stat(prefix + "return_1_mean", np.mean(r1), self.t_env)
+        self.logger.log_stat(prefix + "return_2_mean", np.mean(r2), self.t_env)
         # self.logger.log_stat(prefix + "healths_mean", np.mean(healths), self.t_env)
         returns.clear()
 
