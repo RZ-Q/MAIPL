@@ -26,5 +26,5 @@ name: "qdiffer_preference"
 
 # preference config
 lamda: 0.5
-preference_type: 'high_health'
-seed: 147971273
+preference_type: "true_indi_rewards"
+# seed: 147971273

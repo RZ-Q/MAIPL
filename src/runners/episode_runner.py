@@ -20,16 +20,11 @@ class EpisodeRunner:
 
         self.train_returns = []
         self.test_returns = []
-        # self.train_healths = []
-        # self.test_healths = []
         self.train_stats = {}
         self.test_stats = {}
-
-        # for overcooked env
-        self.train_r1 = []
-        self.test_r1 = []
-        self.train_r2 = []
-        self.test_r2 = []
+        # individual returns log
+        self.train_indi_returns = []
+        self.test_indi_returns = []
 
         # Log the first run
         self.log_train_stats_t = -1000000
@@ -58,8 +53,7 @@ class EpisodeRunner:
 
         terminated = False
         episode_return = 0
-        episode_r1 = 0
-        episode_r2 = 0
+        episode_indi_return = np.zeros(self.args.n_agents)
         self.mac.init_hidden(batch_size=self.batch_size)
 
         while not terminated:
@@ -78,26 +72,23 @@ class EpisodeRunner:
 
             reward, terminated, env_info = self.env.step(actions[0])
             episode_return += reward
-            episode_r1 += env_info["shaped_r1"]
-            episode_r2 += env_info["shaped_r2"]
+            if "indi_reward" not in env_info:
+                print("aaaa")
+            episode_indi_return += np.array(env_info["indi_reward"])
+            
 
             post_transition_data = {
                 "actions": actions,
                 "reward": [(reward,)],
                 "terminated": [(terminated != env_info.get("episode_limit", False),)],
                 # self.env.get_indi_terminated(): (True, False, False)
-                "indi_terminated": [self.env.get_indi_terminated()]
+                "indi_terminated": [self.env.get_indi_terminated()],
+                "indi_reward": [tuple(env_info["indi_reward"])],
             }
 
             self.batch.update(post_transition_data, ts=self.t)
 
             self.t += 1
-
-            # if terminated:
-            #     agents_health = self.env.get_allyunit_health()
-        
-        # cur_health = self.test_healths if test_mode else self.train_healths
-        # cur_health.append(agents_health)
 
         last_data = {
             "state": [self.env.get_state()],
@@ -110,11 +101,9 @@ class EpisodeRunner:
         actions = self.mac.select_actions(self.batch, t_ep=self.t, t_env=self.t_env, test_mode=test_mode)
         self.batch.update({"actions": actions}, ts=self.t)
 
-        #TODO: add overcooked more infos in log stats
         cur_stats = self.test_stats if test_mode else self.train_stats
         cur_returns = self.test_returns if test_mode else self.train_returns
-        cur_r1 = self.test_r1 if test_mode else self.train_r1
-        cur_r2 = self.test_r2 if test_mode else self.train_r2
+        cur_indi_returns = self.test_indi_returns if test_mode else self.train_indi_returns
         log_prefix = "test_" if test_mode else ""
         # cur_stats.update({k: cur_stats.get(k, 0) + env_info.get(k, 0) for k in set(cur_stats) | set(env_info)})
         for k in set(cur_stats) | set(env_info):
@@ -129,28 +118,28 @@ class EpisodeRunner:
             self.t_env += self.t
 
         cur_returns.append(episode_return)
-        cur_r1.append(episode_r1)
-        cur_r2.append(episode_r2)
+        cur_indi_returns.append(episode_indi_return)
 
         if test_mode and (len(self.test_returns) == self.args.test_nepisode):
-            self._log(cur_returns, cur_r1, cur_r2, cur_stats, log_prefix)
+            self._log(cur_returns, cur_indi_returns, cur_stats, log_prefix)
         elif self.t_env - self.log_train_stats_t >= self.args.runner_log_interval:
-            self._log(cur_returns, cur_r1, cur_r2, cur_stats, log_prefix)
+            self._log(cur_returns, cur_indi_returns, cur_stats, log_prefix)
             if hasattr(self.mac.action_selector, "epsilon"):
                 self.logger.log_stat("epsilon", self.mac.action_selector.epsilon, self.t_env)
             self.log_train_stats_t = self.t_env
 
         return self.batch
 
-    def _log(self, returns, r1, r2, stats, prefix):
+    def _log(self, returns, indi_returns, stats, prefix):
         self.logger.log_stat(prefix + "return_mean", np.mean(returns), self.t_env)
         self.logger.log_stat(prefix + "return_std", np.std(returns), self.t_env)
-        self.logger.log_stat(prefix + "return_1_mean", np.mean(r1), self.t_env)
-        self.logger.log_stat(prefix + "return_2_mean", np.mean(r2), self.t_env)
-        # self.logger.log_stat(prefix + "healths_mean", np.mean(healths), self.t_env)
         returns.clear()
+        for i in range(self.args.n_agents):
+            self.logger.log_stat(prefix + "return_mean" + str(i), np.mean(np.array(indi_returns)[:, i]), self.t_env)
+            self.logger.log_stat(prefix + "return_std" + str(i), np.std(np.array(indi_returns)[:, i]), self.t_env)
+        indi_returns.clear()
 
         for k, v in stats.items():
-            if k != "n_episodes" :
+            if k != "n_episodes" and k != "indi_reward":
                 self.logger.log_stat(prefix + k + "_mean" , v/stats["n_episodes"], self.t_env)
         stats.clear()

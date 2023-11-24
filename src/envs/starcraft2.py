@@ -83,6 +83,7 @@ class StarCraft2Env(MultiAgentEnv):
         state_timestep_number=False,
         reward_sparse=False,
         reward_only_positive=True,
+        reward_indi_only_positive=False,
         reward_death_value=10,
         reward_win=200,
         reward_defeat=0,
@@ -221,6 +222,7 @@ class StarCraft2Env(MultiAgentEnv):
         # Rewards args
         self.reward_sparse = reward_sparse
         self.reward_only_positive = reward_only_positive
+        self.reward_indi_only_positive = reward_indi_only_positive
         self.reward_negative_scale = reward_negative_scale
         self.reward_death_value = reward_death_value
         self.reward_win = reward_win
@@ -487,7 +489,6 @@ class StarCraft2Env(MultiAgentEnv):
         terminated = False
         reward, agents_dense_rewards = self.reward_battle(actions_int)
         info = {"battle_won": False}
-        info["agents_dense_rewards"] = agents_dense_rewards
 
         # count units that are still alive
         dead_allies, dead_enemies = 0, 0
@@ -534,8 +535,12 @@ class StarCraft2Env(MultiAgentEnv):
         if terminated:
             self._episode_count += 1
 
+        info["indi_reward"] = agents_dense_rewards
         if self.reward_scale:
-            reward /= self.max_reward / self.reward_scale_rate
+            scale = self.max_reward / self.reward_scale_rate
+            reward /= scale
+            indi_reward = [agents_dense_rewards[i] / scale for i in range(self.n_agents)]
+            info["indi_reward"] = indi_reward
 
         self.reward = reward
 
@@ -785,9 +790,9 @@ class StarCraft2Env(MultiAgentEnv):
                 if al_unit.health == 0:
                     # just died
                     self.death_tracker_ally[al_id] = 1
-                    if not self.reward_only_positive:
+                    # if not self.reward_only_positive:
                         # delta_deaths -= self.reward_death_value * neg_scale
-                        delta_deaths.append(-self.reward_death_value * neg_scale)
+                    delta_deaths.append(-self.reward_death_value * neg_scale)
                     # delta_ally += prev_health * neg_scale
                     delta_ally.append(prev_health * neg_scale)
                 else:
@@ -798,8 +803,8 @@ class StarCraft2Env(MultiAgentEnv):
                     delta_ally.append(
                         neg_scale * (prev_health - al_unit.health - al_unit.shield)
                     )
-                    if not self.reward_only_positive:
-                        delta_deaths.append(0.0)
+                    # if not self.reward_only_positive:
+                    delta_deaths.append(0.0)
             else:
                 delta_deaths.append(0.0)
                 delta_ally.append(0.0)
@@ -824,20 +829,24 @@ class StarCraft2Env(MultiAgentEnv):
                 delta_deaths.append(0.0)
                 delta_enemy.append(0.0)
 
+        # Calculate reward
         if self.reward_only_positive:
-            reward = abs(sum(delta_enemy) + sum(delta_deaths))  # shield regeneration
+            reward = abs(sum(delta_enemy) + sum(delta_deaths[self.n_agents:]))  # shield regeneration
+        else:
+            reward = sum(delta_enemy) + sum(delta_deaths) - sum(delta_ally)
+        # Calculate indi reward
+        if self.reward_indi_only_positive:
             for i in range(len(actions)):
                 enemy_id = actions[i] - self.n_actions_no_attack
                 if enemy_id < 0:
                     agent_reward = 0.0
                 else:
-                    agent_reward = (
+                    agent_reward = abs(
                         delta_enemy[enemy_id] / enemy_attcked_times[enemy_id]
                         + delta_deaths[enemy_id]
                     )
                 agents_dense_rewards.append(agent_reward)
         else:
-            reward = sum(delta_enemy) + sum(delta_deaths) - sum(delta_ally)
             for i in range(len(actions)):
                 enemy_id = actions[i] - self.n_actions_no_attack
                 if enemy_id < 0:
@@ -852,9 +861,6 @@ class StarCraft2Env(MultiAgentEnv):
                         - delta_ally[i]
                     )
                 agents_dense_rewards.append(agent_reward)
-        if sum(agents_dense_rewards) != reward:
-            print(agents_dense_rewards, reward)
-        # TODO: add same attack check
 
         return reward, agents_dense_rewards
 

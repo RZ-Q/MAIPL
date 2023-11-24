@@ -42,9 +42,19 @@ class ScriptPreferences:
         
         return torch.stack(preferences, dim=-1)
     
-    def produce_labels(self, states: torch.Tensor, actions: torch.Tensor):
+    def true_indi_rewards_preference(self, indi_rewards):
+        agent_num = self.args.n_agents
+        preferences = []
+        for i in range(agent_num):
+            for j in range(i + 1, agent_num):
+                labels = 0.5 * (indi_rewards[:, :, i].sum(-1) == indi_rewards[:, :, j].sum(-1))
+                labels += 1.0 * (indi_rewards[:, :, i].sum(-1) < indi_rewards[:, :, j].sum(-1)) 
+                preferences.append(labels)
+        return preferences
+
+    def produce_labels(self, states: torch.Tensor, actions: torch.Tensor, indi_rewards: torch.Tensor):
         if self.preference_type == 'high_health':
             return self.high_health_preference(states, actions)
-        else:
-            return self.high_health_preference(states, actions)
+        elif self.preference_type == "true_indi_rewards":
+            return self.true_indi_rewards_preference(indi_rewards)
 

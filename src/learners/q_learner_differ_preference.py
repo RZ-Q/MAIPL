@@ -51,8 +51,10 @@ class QLearner_differ_perference:
         chosen_action_qvals before mixer shape [bs, ep_len, num_agents]
         target_mac_out shape [bs, ep_len, num_agent, num_action]
         states shape [bs, ep_len, state_size]
+        indi_rewards shape [bs, ep_len, num_agent]
         """
         rewards = batch["reward"][:, :-1]
+        indi_rewards = batch["indi_reward"][:, :-1]
         actions = batch["actions"][:, :-1]
         terminated = batch["terminated"][:, :-1].float()
         mask = batch["filled"][:, :-1].float()
@@ -160,7 +162,7 @@ class QLearner_differ_perference:
         q_loss = (masked_q_td_error ** 2).sum() / q_mask.sum()
 
         # preference loss
-        preference_labels = self.script_preferences.produce_labels(states, actions)
+        preference_labels = self.script_preferences.produce_labels(states, actions, indi_rewards)
         preference_loss = self.cal_preference_loss(q_rewards, preference_labels, self.args.n_agents)
 
         q_total_loss = q_loss + self.args.lamda * preference_loss
@@ -198,11 +200,11 @@ class QLearner_differ_perference:
         q_rewards = q_rewards.sum(dim=1) # [bs, n_agent]
         preference_loss = []
         for i in range(agent_num):
-            for j in range(i, agent_num):
+            for j in range(i + 1, agent_num):
                 r_i = q_rewards[:, i].unsqueeze(-1)
                 r_j = q_rewards[:, j].unsqueeze(-1)
                 r_i_j = th.cat([r_i, r_j], axis=-1)
-                labels = preference_labels[:, i+j].long()
+                labels = preference_labels[:, i+j-1].long()
                 loss = self.CEloss(r_i_j, labels)
                 preference_loss.append(loss)
         
