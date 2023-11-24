@@ -253,9 +253,7 @@ class StarCraft2Env(MultiAgentEnv):
         self.map_type = map_params["map_type"]
         self._unit_types = None
 
-        self.max_reward = (
-            self.n_enemies * self.reward_death_value + self.reward_win
-        )
+        self.max_reward = self.n_enemies * self.reward_death_value + self.reward_win
 
         # create lists containing the names of attributes returned in states
         self.ally_state_attr_names = [
@@ -425,9 +423,7 @@ class StarCraft2Env(MultiAgentEnv):
 
         if self.debug:
             logging.debug(
-                "Started Episode {}".format(self._episode_count).center(
-                    60, "*"
-                )
+                "Started Episode {}".format(self._episode_count).center(60, "*")
             )
 
         return self.get_obs(), self.get_state()
@@ -465,9 +461,7 @@ class StarCraft2Env(MultiAgentEnv):
             if not self.heuristic_ai:
                 sc_action = self.get_agent_action(a_id, action)
             else:
-                sc_action, action_num = self.get_agent_action_heuristic(
-                    a_id, action
-                )
+                sc_action, action_num = self.get_agent_action_heuristic(a_id, action)
                 actions[a_id] = action_num
             if sc_action:
                 sc_actions.append(sc_action)
@@ -491,8 +485,9 @@ class StarCraft2Env(MultiAgentEnv):
         game_end_code = self.update_units()
 
         terminated = False
-        reward = self.reward_battle()
+        reward, agents_dense_rewards = self.reward_battle(actions_int)
         info = {"battle_won": False}
+        info["agents_dense_rewards"] = agents_dense_rewards
 
         # count units that are still alive
         dead_allies, dead_enemies = 0, 0
@@ -549,9 +544,9 @@ class StarCraft2Env(MultiAgentEnv):
     def get_agent_action(self, a_id, action):
         """Construct the action for agent a_id."""
         avail_actions = self.get_avail_agent_actions(a_id)
-        assert (
-            avail_actions[action] == 1
-        ), "Agent {} cannot perform action {}".format(a_id, action)
+        assert avail_actions[action] == 1, "Agent {} cannot perform action {}".format(
+            a_id, action
+        )
 
         unit = self.get_unit_by_id(a_id)
         tag = unit.tag
@@ -578,9 +573,7 @@ class StarCraft2Env(MultiAgentEnv):
             # move north
             cmd = r_pb.ActionRawUnitCommand(
                 ability_id=actions["move"],
-                target_world_space_pos=sc_common.Point2D(
-                    x=x, y=y + self._move_amount
-                ),
+                target_world_space_pos=sc_common.Point2D(x=x, y=y + self._move_amount),
                 unit_tags=[tag],
                 queue_command=False,
             )
@@ -591,9 +584,7 @@ class StarCraft2Env(MultiAgentEnv):
             # move south
             cmd = r_pb.ActionRawUnitCommand(
                 ability_id=actions["move"],
-                target_world_space_pos=sc_common.Point2D(
-                    x=x, y=y - self._move_amount
-                ),
+                target_world_space_pos=sc_common.Point2D(x=x, y=y - self._move_amount),
                 unit_tags=[tag],
                 queue_command=False,
             )
@@ -604,9 +595,7 @@ class StarCraft2Env(MultiAgentEnv):
             # move east
             cmd = r_pb.ActionRawUnitCommand(
                 ability_id=actions["move"],
-                target_world_space_pos=sc_common.Point2D(
-                    x=x + self._move_amount, y=y
-                ),
+                target_world_space_pos=sc_common.Point2D(x=x + self._move_amount, y=y),
                 unit_tags=[tag],
                 queue_command=False,
             )
@@ -617,9 +606,7 @@ class StarCraft2Env(MultiAgentEnv):
             # move west
             cmd = r_pb.ActionRawUnitCommand(
                 ability_id=actions["move"],
-                target_world_space_pos=sc_common.Point2D(
-                    x=x - self._move_amount, y=y
-                ),
+                target_world_space_pos=sc_common.Point2D(x=x - self._move_amount, y=y),
                 unit_tags=[tag],
                 queue_command=False,
             )
@@ -647,9 +634,7 @@ class StarCraft2Env(MultiAgentEnv):
 
             if self.debug:
                 logging.debug(
-                    "Agent {} {}s unit # {}".format(
-                        a_id, action_name, target_id
-                    )
+                    "Agent {} {}s unit # {}".format(a_id, action_name, target_id)
                 )
 
         sc_action = sc_pb.Action(action_raw=r_pb.ActionRaw(unit_command=cmd))
@@ -671,10 +656,7 @@ class StarCraft2Env(MultiAgentEnv):
                 for al_id, al_unit in self.agents.items():
                     if al_unit.unit_type == self.medivac_id:
                         continue
-                    if (
-                        al_unit.health != 0
-                        and al_unit.health != al_unit.health_max
-                    ):
+                    if al_unit.health != 0 and al_unit.health != al_unit.health_max:
                         dist = self.distance(
                             unit.pos.x,
                             unit.pos.y,
@@ -717,11 +699,7 @@ class StarCraft2Env(MultiAgentEnv):
         action_num = self.heuristic_targets[a_id] + self.n_actions_no_attack
 
         # Check if the action is available
-        if (
-            self.heuristic_rest
-            and self.get_avail_agent_actions(a_id)[action_num] == 0
-        ):
-
+        if self.heuristic_rest and self.get_avail_agent_actions(a_id)[action_num] == 0:
             # Move towards the target rather than attacking/healing
             if unit.unit_type == self.medivac_id:
                 target_unit = self.agents[self.heuristic_targets[a_id]]
@@ -772,7 +750,7 @@ class StarCraft2Env(MultiAgentEnv):
         sc_action = sc_pb.Action(action_raw=r_pb.ActionRaw(unit_command=cmd))
         return sc_action, action_num
 
-    def reward_battle(self):
+    def reward_battle(self, actions: list):
         """Reward function when self.reward_spare==False.
         Returns accumulative hit/shield point damage dealt to the enemy
         + reward_death_value per enemy unit killed, and, in case
@@ -783,11 +761,18 @@ class StarCraft2Env(MultiAgentEnv):
             return 0
 
         reward = 0
-        delta_deaths = 0
-        delta_ally = 0
-        delta_enemy = 0
+        delta_deaths = []
+        delta_ally = []
+        delta_enemy = []
+        agents_dense_rewards = []
 
         neg_scale = self.reward_negative_scale
+
+        # calculate enenmy being attacked times
+        enemy_attcked_times = [0 for _ in range(self.n_enemies)]
+        for a in actions:
+            if a >= self.n_actions_no_attack:
+                enemy_attcked_times[a - self.n_actions_no_attack] += 1
 
         # update deaths
         for al_id, al_unit in self.agents.items():
@@ -801,13 +786,23 @@ class StarCraft2Env(MultiAgentEnv):
                     # just died
                     self.death_tracker_ally[al_id] = 1
                     if not self.reward_only_positive:
-                        delta_deaths -= self.reward_death_value * neg_scale
-                    delta_ally += prev_health * neg_scale
+                        # delta_deaths -= self.reward_death_value * neg_scale
+                        delta_deaths.append(-self.reward_death_value * neg_scale)
+                    # delta_ally += prev_health * neg_scale
+                    delta_ally.append(prev_health * neg_scale)
                 else:
                     # still alive
-                    delta_ally += neg_scale * (
-                        prev_health - al_unit.health - al_unit.shield
+                    # delta_ally += neg_scale * (
+                    #     prev_health - al_unit.health - al_unit.shield
+                    # )
+                    delta_ally.append(
+                        neg_scale * (prev_health - al_unit.health - al_unit.shield)
                     )
+                    if not self.reward_only_positive:
+                        delta_deaths.append(0.0)
+            else:
+                delta_deaths.append(0.0)
+                delta_ally.append(0.0)
 
         for e_id, e_unit in self.enemies.items():
             if not self.death_tracker_enemy[e_id]:
@@ -817,17 +812,51 @@ class StarCraft2Env(MultiAgentEnv):
                 )
                 if e_unit.health == 0:
                     self.death_tracker_enemy[e_id] = 1
-                    delta_deaths += self.reward_death_value
-                    delta_enemy += prev_health
+                    # delta_deaths += self.reward_death_value
+                    delta_deaths.append(self.reward_death_value)
+                    # delta_enemy += prev_health
+                    delta_enemy.append(prev_health)
                 else:
-                    delta_enemy += prev_health - e_unit.health - e_unit.shield
+                    # delta_enemy += prev_health - e_unit.health - e_unit.shield
+                    delta_enemy.append(prev_health - e_unit.health - e_unit.shield)
+                    delta_deaths.append(0.0)
+            else:
+                delta_deaths.append(0.0)
+                delta_enemy.append(0.0)
 
         if self.reward_only_positive:
-            reward = abs(delta_enemy + delta_deaths)  # shield regeneration
+            reward = abs(sum(delta_enemy) + sum(delta_deaths))  # shield regeneration
+            for i in range(len(actions)):
+                enemy_id = actions[i] - self.n_actions_no_attack
+                if enemy_id < 0:
+                    agent_reward = 0.0
+                else:
+                    agent_reward = (
+                        delta_enemy[enemy_id] / enemy_attcked_times[enemy_id]
+                        + delta_deaths[enemy_id]
+                    )
+                agents_dense_rewards.append(agent_reward)
         else:
-            reward = delta_enemy + delta_deaths - delta_ally
+            reward = sum(delta_enemy) + sum(delta_deaths) - sum(delta_ally)
+            for i in range(len(actions)):
+                enemy_id = actions[i] - self.n_actions_no_attack
+                if enemy_id < 0:
+                    agent_reward = -delta_ally[i] + delta_deaths[i]
+                else:
+                    agent_reward = (
+                        delta_enemy[enemy_id] / enemy_attcked_times[enemy_id]
+                        + delta_deaths[i]
+                        + delta_deaths[
+                            enemy_id + len(actions)
+                        ]
+                        - delta_ally[i]
+                    )
+                agents_dense_rewards.append(agent_reward)
+        if sum(agents_dense_rewards) != reward:
+            print(agents_dense_rewards, reward)
+        # TODO: add same attack check
 
-        return reward
+        return reward, agents_dense_rewards
 
     def get_total_actions(self):
         """Returns the total number of actions an agent could ever take."""
@@ -930,8 +959,7 @@ class StarCraft2Env(MultiAgentEnv):
         """Returns pathing values of the grid surrounding the given unit."""
         points = self.get_surrounding_points(unit, include_self=False)
         vals = [
-            self.pathing_grid[x, y] if self.check_bounds(x, y) else 1
-            for x, y in points
+            self.pathing_grid[x, y] if self.check_bounds(x, y) else 1 for x, y in points
         ]
         return vals
 
@@ -1011,20 +1039,14 @@ class StarCraft2Env(MultiAgentEnv):
                 e_y = e_unit.pos.y
                 dist = self.distance(x, y, e_x, e_y)
 
-                if (
-                    dist < sight_range and e_unit.health > 0
-                ):  # visible and alive
+                if dist < sight_range and e_unit.health > 0:  # visible and alive
                     # Sight range > shoot range
                     enemy_feats[e_id, 0] = avail_actions[
                         self.n_actions_no_attack + e_id
                     ]  # available
                     enemy_feats[e_id, 1] = dist / sight_range  # distance
-                    enemy_feats[e_id, 2] = (
-                        e_x - x
-                    ) / sight_range  # relative X
-                    enemy_feats[e_id, 3] = (
-                        e_y - y
-                    ) / sight_range  # relative Y
+                    enemy_feats[e_id, 2] = (e_x - x) / sight_range  # relative X
+                    enemy_feats[e_id, 3] = (e_y - y) / sight_range  # relative Y
 
                     ind = 4
                     if self.obs_all_health:
@@ -1044,19 +1066,14 @@ class StarCraft2Env(MultiAgentEnv):
                         enemy_feats[e_id, ind + type_id] = 1  # unit type
 
             # Ally features
-            al_ids = [
-                al_id for al_id in range(self.n_agents) if al_id != agent_id
-            ]
+            al_ids = [al_id for al_id in range(self.n_agents) if al_id != agent_id]
             for i, al_id in enumerate(al_ids):
-
                 al_unit = self.get_unit_by_id(al_id)
                 al_x = al_unit.pos.x
                 al_y = al_unit.pos.y
                 dist = self.distance(x, y, al_x, al_y)
 
-                if (
-                    dist < sight_range and al_unit.health > 0
-                ):  # visible and alive
+                if dist < sight_range and al_unit.health > 0:  # visible and alive
                     ally_feats[i, 0] = 1  # visible
                     ally_feats[i, 1] = dist / sight_range  # distance
                     ally_feats[i, 2] = (al_x - x) / sight_range  # relative X
@@ -1070,9 +1087,7 @@ class StarCraft2Env(MultiAgentEnv):
                         ind += 1
                         if self.shield_bits_ally > 0:
                             max_shield = self.unit_max_shield(al_unit)
-                            ally_feats[i, ind] = (
-                                al_unit.shield / max_shield
-                            )  # shield
+                            ally_feats[i, ind] = al_unit.shield / max_shield  # shield
                             ind += 1
 
                     if self.unit_type_bits > 0:
@@ -1107,16 +1122,12 @@ class StarCraft2Env(MultiAgentEnv):
         )
 
         if self.obs_timestep_number:
-            agent_obs = np.append(
-                agent_obs, self._episode_steps / self.episode_limit
-            )
+            agent_obs = np.append(agent_obs, self._episode_steps / self.episode_limit)
 
         if self.debug:
             logging.debug("Obs Agent: {}".format(agent_id).center(60, "-"))
             logging.debug(
-                "Avail. actions {}".format(
-                    self.get_avail_agent_actions(agent_id)
-                )
+                "Avail. actions {}".format(self.get_avail_agent_actions(agent_id))
             )
             logging.debug("Move feats {}".format(move_feats))
             logging.debug("Enemy feats {}".format(enemy_feats))
@@ -1138,9 +1149,7 @@ class StarCraft2Env(MultiAgentEnv):
         NOTE: This functon should not be used during decentralised execution.
         """
         if self.obs_instead_of_state:
-            obs_concat = np.concatenate(self.get_obs(), axis=0).astype(
-                np.float32
-            )
+            obs_concat = np.concatenate(self.get_obs(), axis=0).astype(np.float32)
             return obs_concat
 
         state_dict = self.get_state_dict()
@@ -1197,18 +1206,11 @@ class StarCraft2Env(MultiAgentEnv):
                 y = al_unit.pos.y
                 max_cd = self.unit_max_cooldown(al_unit)
 
-                ally_state[al_id, 0] = (
-                    al_unit.health / al_unit.health_max
-                )  # health
-                if (
-                    self.map_type == "MMM"
-                    and al_unit.unit_type == self.medivac_id
-                ):
+                ally_state[al_id, 0] = al_unit.health / al_unit.health_max  # health
+                if self.map_type == "MMM" and al_unit.unit_type == self.medivac_id:
                     ally_state[al_id, 1] = al_unit.energy / max_cd  # energy
                 else:
-                    ally_state[al_id, 1] = (
-                        al_unit.weapon_cooldown / max_cd
-                    )  # cooldown
+                    ally_state[al_id, 1] = al_unit.weapon_cooldown / max_cd  # cooldown
                 ally_state[al_id, 2] = (
                     x - center_x
                 ) / self.max_distance_x  # relative X
@@ -1218,9 +1220,7 @@ class StarCraft2Env(MultiAgentEnv):
 
                 if self.shield_bits_ally > 0:
                     max_shield = self.unit_max_shield(al_unit)
-                    ally_state[al_id, 4] = (
-                        al_unit.shield / max_shield
-                    )  # shield
+                    ally_state[al_id, 4] = al_unit.shield / max_shield  # shield
 
                 if self.unit_type_bits > 0:
                     type_id = self.get_unit_type_id(al_unit, True)
@@ -1231,9 +1231,7 @@ class StarCraft2Env(MultiAgentEnv):
                 x = e_unit.pos.x
                 y = e_unit.pos.y
 
-                enemy_state[e_id, 0] = (
-                    e_unit.health / e_unit.health_max
-                )  # health
+                enemy_state[e_id, 0] = e_unit.health / e_unit.health_max  # health
                 enemy_state[e_id, 1] = (
                     x - center_x
                 ) / self.max_distance_x  # relative X
@@ -1368,9 +1366,7 @@ class StarCraft2Env(MultiAgentEnv):
                         arr[agent_id, self.n_agents + e_id] = 1
 
                 # The matrix for allies is filled symmetrically
-                al_ids = [
-                    al_id for al_id in range(self.n_agents) if al_id > agent_id
-                ]
+                al_ids = [al_id for al_id in range(self.n_agents) if al_id > agent_id]
                 for _, al_id in enumerate(al_ids):
                     al_unit = self.get_unit_by_id(al_id)
                     al_x = al_unit.pos.x
@@ -1493,16 +1489,14 @@ class StarCraft2Env(MultiAgentEnv):
             from smac.env.starcraft2.render import StarCraft2Renderer
 
             self.renderer = StarCraft2Renderer(self, mode)
-        assert (
-            mode == self.renderer.mode
-        ), "mode must be consistent across render calls"
+        assert mode == self.renderer.mode, "mode must be consistent across render calls"
         return self.renderer.render(mode)
 
     def _kill_all_units(self):
         """Kill all units on the map."""
-        units_alive = [
-            unit.tag for unit in self.agents.values() if unit.health > 0
-        ] + [unit.tag for unit in self.enemies.values() if unit.health > 0]
+        units_alive = [unit.tag for unit in self.agents.values() if unit.health > 0] + [
+            unit.tag for unit in self.enemies.values() if unit.health > 0
+        ]
         debug_command = [
             d_pb.DebugCommand(kill_unit=d_pb.DebugKillUnit(tag=units_alive))
         ]
@@ -1516,9 +1510,7 @@ class StarCraft2Env(MultiAgentEnv):
             self.enemies = {}
 
             ally_units = [
-                unit
-                for unit in self._obs.observation.raw_data.units
-                if unit.owner == 1
+                unit for unit in self._obs.observation.raw_data.units if unit.owner == 1
             ]
             ally_units_sorted = sorted(
                 ally_units,
@@ -1545,17 +1537,13 @@ class StarCraft2Env(MultiAgentEnv):
                         self.max_reward += unit.health_max + unit.shield_max
 
             if self._episode_count == 0:
-                min_unit_type = min(
-                    unit.unit_type for unit in self.agents.values()
-                )
+                min_unit_type = min(unit.unit_type for unit in self.agents.values())
                 self._init_ally_unit_types(min_unit_type)
 
             all_agents_created = len(self.agents) == self.n_agents
             all_enemies_created = len(self.enemies) == self.n_enemies
 
-            self._unit_types = [
-                unit.unit_type for unit in ally_units_sorted
-            ] + [
+            self._unit_types = [unit.unit_type for unit in ally_units_sorted] + [
                 unit.unit_type
                 for unit in self._obs.observation.raw_data.units
                 if unit.owner == 2
@@ -1615,11 +1603,7 @@ class StarCraft2Env(MultiAgentEnv):
             if not updated:  # dead
                 e_unit.health = 0
 
-        if (
-            n_ally_alive == 0
-            and n_enemy_alive > 0
-            or self.only_medivac_left(ally=True)
-        ):
+        if n_ally_alive == 0 and n_enemy_alive > 0 or self.only_medivac_left(ally=True):
             return -1  # lost
         if (
             n_ally_alive > 0
@@ -1706,7 +1690,7 @@ class StarCraft2Env(MultiAgentEnv):
         env_info["agent_features"] = self.ally_state_attr_names
         env_info["enemy_features"] = self.enemy_state_attr_names
         return env_info
-    
+
     def get_indi_terminated(self):
         """Returns the terminated of all agents in a list."""
         terminate = []
@@ -1717,11 +1701,11 @@ class StarCraft2Env(MultiAgentEnv):
             else:
                 terminate.append(1)
         return terminate
-    
+
     def get_allyunit_health(self):
         health = []
         for agent_id in range(self.n_agents):
             unit = self.get_unit_by_id(agent_id)
             health.append(unit.health / unit.health_max)
-        
+
         return sum(health) / len(health)
