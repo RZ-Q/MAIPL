@@ -72,8 +72,6 @@ class EpisodeRunner:
 
             reward, terminated, env_info = self.env.step(actions[0])
             episode_return += reward
-            if "indi_reward" not in env_info:
-                print("aaaa")
             episode_indi_return += np.array(env_info["indi_reward"])
             
 
@@ -85,6 +83,9 @@ class EpisodeRunner:
                 "indi_terminated": [self.env.get_indi_terminated()],
                 "indi_reward": [tuple(env_info["indi_reward"])],
             }
+
+            # delete indi_reward in env_info, thus it will not in cur_stats
+            del env_info["indi_reward"]
 
             self.batch.update(post_transition_data, ts=self.t)
 
