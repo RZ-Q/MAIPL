@@ -50,7 +50,7 @@ class ScriptPreferences:
                 labels = 0.5 * (indi_rewards[:, :, i].sum(-1) == indi_rewards[:, :, j].sum(-1))
                 labels += 1.0 * (indi_rewards[:, :, i].sum(-1) < indi_rewards[:, :, j].sum(-1)) 
                 preferences.append(labels)
-        return preferences
+        return torch.stack(preferences, dim=-1)
 
     def produce_labels(self, states: torch.Tensor, actions: torch.Tensor, indi_rewards: torch.Tensor):
         if self.preference_type == 'high_health':
