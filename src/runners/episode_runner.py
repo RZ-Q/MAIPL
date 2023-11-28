@@ -1,5 +1,6 @@
 from envs import REGISTRY as env_REGISTRY
 from functools import partial
+from torch.distributions import Categorical
 from components.episode_buffer import EpisodeBatch
 import numpy as np
 
@@ -48,7 +49,7 @@ class EpisodeRunner:
         self.env.reset()
         self.t = 0
 
-    def run(self, test_mode=False):
+    def run(self, test_mode=False, random=False):
         self.reset()
 
         terminated = False
@@ -68,7 +69,16 @@ class EpisodeRunner:
 
             # Pass the entire batch of experiences up till now to the agents
             # Receive the actions for each agent at this timestep in a batch of size 1
-            actions = self.mac.select_actions(self.batch, t_ep=self.t, t_env=self.t_env, test_mode=test_mode)
+            # Random actions
+            if random:
+                avail_actions = self.batch["avail_actions"][:, self.t]
+                actions = Categorical(avail_actions.float()).sample().long()
+            else:
+                # epsilon is not need in sac
+                # in qmix, enlarge decay steps is ok 50000->60000
+                actions = self.mac.select_actions(
+                    self.batch, t_ep=self.t, t_env=self.t_env, test_mode=test_mode
+                )
 
             reward, terminated, env_info = self.env.step(actions[0])
             episode_return += reward

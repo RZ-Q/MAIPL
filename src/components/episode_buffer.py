@@ -27,6 +27,10 @@ class EpisodeBatch:
             self.data.episode_data = {}
             self._setup_data(self.scheme, self.groups, batch_size, max_seq_length, self.preprocess)
 
+    # To support item assignment: self[index * batch_size: last_index]["reward_hat"] = pred_reward
+    def __setitem__(self, key, value):
+        self.data.transition_data[key] = value
+
     def _setup_data(self, scheme, groups, batch_size, max_seq_length, preprocess):
         if preprocess is not None:
             for k in preprocess:
@@ -244,6 +248,9 @@ class ReplayBuffer(EpisodeBatch):
             # Uniform sampling only atm
             ep_ids = np.random.choice(self.episodes_in_buffer, batch_size, replace=False)
             return self[ep_ids]
+    
+    def return_full_buffer(self):
+        return self[:-1]
 
     def __repr__(self):
         return "ReplayBuffer. {}/{} episodes. Keys:{} Groups:{}".format(self.episodes_in_buffer,
