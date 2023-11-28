@@ -1,0 +1,37 @@
+# --- QMIX specific parameters ---
+
+# use epsilon greedy action selector
+action_selector: "epsilon_greedy"
+epsilon_start: 1.0
+epsilon_finish: 0.05
+epsilon_anneal_time: 50000
+
+runner: "episode"
+
+buffer_size: 5000
+
+# update the target network every {} episodes
+target_update_interval: 200
+
+# use the Q_Learner to train
+agent_output_type: "q"
+learner: "pref_q_learner"
+double_q: True
+mixer: "qmix"
+mixing_embed_dim: 32
+hypernet_layers: 2
+hypernet_embed: 64
+
+name: "pref_qmix"
+
+# preference config
+lamda: 0.5
+preference_type: "true_indi_rewards"
+# seed: 147971273
+seed: 180336608
+
+# --- unsup ---
+unsup_train: True
+num_seed_timesteps: 2000  # random actions
+num_unsup_timesteps: 10000  # 10000
+k: 6
