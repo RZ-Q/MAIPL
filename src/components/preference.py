@@ -47,10 +47,11 @@ class ScriptPreferences:
         preferences = []
         for i in range(agent_num):
             for j in range(i + 1, agent_num):
+                # make onehot labels
                 labels = 0.5 * (indi_rewards[:, :, i].sum(-1) == indi_rewards[:, :, j].sum(-1))
-                labels += 1.0 * (indi_rewards[:, :, i].sum(-1) < indi_rewards[:, :, j].sum(-1)) 
-                preferences.append(labels)
-        return torch.stack(preferences, dim=-1)
+                labels += 1.0 * (indi_rewards[:, :, i].sum(-1) < indi_rewards[:, :, j].sum(-1))
+                preferences.append(torch.stack([labels, 1-labels],dim=-1))
+        return torch.stack(preferences, dim=1)
 
     def produce_labels(self, states: torch.Tensor, actions: torch.Tensor, indi_rewards: torch.Tensor):
         if self.preference_type == 'high_health':
