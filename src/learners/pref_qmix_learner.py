@@ -163,9 +163,14 @@ class Pref_QLearner:
 
         # preference loss
         preference_labels = self.script_preferences.produce_labels(states, actions, indi_rewards)
-        preference_loss = self.cal_preference_loss(q_rewards, preference_labels, self.args.n_agents)
+        preference_loss = self.cal_preference_loss(q_rewards, q_mask, preference_labels, self.args.n_agents)
 
+        # if t_env > self.args.num_unsup_timesteps:
+        #     q_total_loss = q_loss + self.args.lamda * preference_loss
+        # else:
+        #     q_total_loss = q_loss
         q_total_loss = q_loss + self.args.lamda * preference_loss
+        # q_total_loss = q_loss
 
         # Optimise
         self.agent_optimizer.zero_grad()
@@ -186,7 +191,7 @@ class Pref_QLearner:
 
             self.logger.log_stat("q_loss", q_loss.item(), t_env)
             self.logger.log_stat("q_grad_norm", q_grad_norm, t_env)
-            self.logger.log_stat("prefer_loss", preference_loss, t_env)
+            self.logger.log_stat("prefer_loss", preference_loss.item(), t_env)
             q_mask_elems = q_mask.sum().item()
             self.logger.log_stat("q_td_error_abs", (masked_q_td_error.abs().sum().item()/q_mask_elems), t_env)
             self.logger.log_stat("q_q_taken_mean", (chosen_action_qvals * q_mask).sum().item()/(q_mask_elems), t_env)
@@ -474,11 +479,11 @@ class Pref_QLearner:
 
         return state_entropy
 
-    def cal_preference_loss(self, q_rewards, preference_labels, agent_num):
+    def cal_preference_loss(self, q_rewards, q_mask, preference_labels, agent_num):
         # q_rewards [bs, seq_len, n_agent]
         # preference_labels [bs, C_n_agent^2, 2]
         # use log(softmax) instead of nn.CEloss for 0.5 labels
-        q_rewards = q_rewards.sum(dim=1) # [bs, n_agent]
+        q_rewards = (q_rewards * q_mask).sum(dim=1) # [bs, n_agent]
         preference_loss = []
         for i in range(agent_num):
             for j in range(i + 1, agent_num):
