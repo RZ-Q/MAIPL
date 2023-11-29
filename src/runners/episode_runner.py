@@ -91,7 +91,7 @@ class EpisodeRunner:
                 "terminated": [(terminated != env_info.get("episode_limit", False),)],
                 # self.env.get_indi_terminated(): (True, False, False)
                 "indi_terminated": [self.env.get_indi_terminated()],
-                "indi_reward": [tuple(env_info["indi_reward"])],
+                "indi_reward": list(env_info["indi_reward"]),
             }
 
             # delete indi_reward in env_info, thus it will not in cur_stats
