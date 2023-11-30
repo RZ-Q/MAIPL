@@ -31,7 +31,7 @@ preference_type: "true_indi_rewards"
 seed: 180336608
 
 # --- unsup ---
-unsup_train: True
+unsup_train: False
 num_seed_timesteps: 2000  # random actions
 num_unsup_timesteps: 10000  # 10000
 k: 6
