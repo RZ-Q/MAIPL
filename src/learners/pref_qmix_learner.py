@@ -5,6 +5,7 @@ from modules.mixers.qmix import QMixer
 import torch as th
 from torch.optim import RMSprop
 from components.preference import ScriptPreferences
+import numpy as np
 
 
 class Pref_QLearner:
@@ -169,7 +170,11 @@ class Pref_QLearner:
         #     q_total_loss = q_loss + self.args.lamda * preference_loss
         # else:
         #     q_total_loss = q_loss
-        q_total_loss = q_loss + self.args.lamda * preference_loss
+        if t_env > self.args.num_unsup_timesteps:
+            q_total_loss = q_loss / q_loss.abs().detach() + self.args.lamda * preference_loss / preference_loss.abs().detach()
+        else:
+            q_total_loss = q_loss / q_loss.abs().detach()
+        # q_total_loss = q_loss + self.args.lamda * preference_loss
         # q_total_loss = q_loss
 
         # Optimise
@@ -197,6 +202,7 @@ class Pref_QLearner:
             self.logger.log_stat("q_q_taken_mean", (chosen_action_qvals * q_mask).sum().item()/(q_mask_elems), t_env)
             self.logger.log_stat("q_q_target_mean", (q_targets * q_mask).sum().item()/(q_mask_elems), t_env)
             self.logger.log_stat("reward_i_mean", (q_rewards * q_mask).sum().item()/(q_mask_elems), t_env)
+            self.logger.log_stat("q_return_mean", (q_rewards * q_mask).sum(1).mean().item(), t_env)
 
             self.log_stats_t = t_env
 
@@ -491,7 +497,9 @@ class Pref_QLearner:
                 r_j = q_rewards[:, j].unsqueeze(-1)
                 r_i_j = th.cat([r_i, r_j], axis=-1)
                 labels = preference_labels[:, i+j-1]
-                loss = th.mean(-th.sum(th.mul(th.log(th.softmax(r_i_j, dim=-1)), labels), dim=-1))
+                # KL loss
+                loss = th.sum(labels * ((labels + 1e-6).log() - (th.softmax(r_i_j, dim=-1) + 1e-6).log()), dim=-1).mean()
+                # loss = th.mean(-th.sum(th.mul(th.log(th.softmax(r_i_j, dim=-1) + 1e-6), labels), dim=-1))
                 # loss = self.CEloss(r_i_j, labels)
                 preference_loss.append(loss)
         
