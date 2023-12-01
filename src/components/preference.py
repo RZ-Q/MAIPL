@@ -9,6 +9,8 @@ class ScriptPreferences:
         if self.args.preference_type == "policy":
             self.prefer_mac = prefer_mac
             self.prefer_mac.load_models(self.args.policy_dir)
+            if self.args.use_cuda:
+                prefer_mac.cuda()
 
     def process_states(self, states: torch.Tensor, actions: torch.Tensor):
         # states shape [bs, ep_len, state_size]
