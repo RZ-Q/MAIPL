@@ -2,10 +2,13 @@ import torch
 
 
 class ScriptPreferences:
-    def __init__(self, args) -> None:
+    def __init__(self, args, prefer_mac) -> None:
         self.args = args
         self.map_name = args.env_args["map_name"]
         self.preference_type = args.preference_type
+        if self.args.preference_type == "policy":
+            self.prefer_mac = prefer_mac
+            self.prefer_mac.load_models(self.args.policy_dir)
 
     def process_states(self, states: torch.Tensor, actions: torch.Tensor):
         # states shape [bs, ep_len, state_size]
@@ -26,12 +29,14 @@ class ScriptPreferences:
 
         return agent_num, agents_health, agents_cooldown, enemies_health, actions
 
-    def high_health_preference(self, states: torch.Tensor, actions: torch.Tensor):
+    def high_health_preference(self, batch):
         """
         This preference prefers high health agents.
         Computation:
             Agent with high Agent_health[-1] value get higher preference
         """
+        states = batch["state"][:, :-1] 
+        actions = batch["actions"][:, :-1]
         agent_num, agents_health, _, _, _ = self.process_states(states, actions)
         preferences = []
         for i in range(agent_num):
@@ -42,7 +47,8 @@ class ScriptPreferences:
         
         return torch.stack(preferences, dim=-1)
     
-    def true_indi_rewards_preference(self, indi_rewards):
+    def true_indi_rewards_preference(self, batch):
+        indi_rewards = batch["indi_reward"][:, :-1]
         agent_num = self.args.n_agents
         preferences = []
         for i in range(agent_num):
@@ -53,9 +59,40 @@ class ScriptPreferences:
                 preferences.append(torch.stack([labels, 1-labels],dim=-1))
         return torch.stack(preferences, dim=1)
 
-    def produce_labels(self, states: torch.Tensor, actions: torch.Tensor, indi_rewards: torch.Tensor):
+    def policy_preference(self, batch):
+        actions = batch["actions"][:, :-1]
+        terminated = batch["terminated"][:, :-1].float()
+        mask = batch["filled"][:, :-1].float()
+        mask[:, 1:] = mask[:, 1:] * (1 - terminated[:, :-1])
+        avail_actions = batch["avail_actions"]
+        indi_terminated = batch["indi_terminated"][:, :-1].float()
+
+        # Calculate estimated Q-Values
+        mac_out = []
+        with torch.no_grad(): # reference        
+            self.prefer_mac.init_hidden(batch.batch_size)
+            for t in range(batch.max_seq_length):
+                agent_outs =  self.prefer_mac.forward(batch, t=t)
+                mac_out.append(agent_outs)
+        mac_out = torch.stack(mac_out, dim=1)  # Concat over time
+        mac_out[avail_actions == 0] = -1e10
+        mac_out = torch.softmax(mac_out, dim=-1)
+        chosen_p = torch.gather(mac_out[:, :-1], dim=3, index=actions).squeeze(3)
+        cum_p = torch.prod(chosen_p * mask + (1 - mask), dim=1)
+        preferences = []
+        for i in range(self.args.n_agents):
+            for j in range(i + 1, self.args.n_agents):
+                # make onehot labels
+                labels = 0.5 * (cum_p[:, i] == cum_p[:, j])
+                labels += 1.0 * (cum_p[:, i] < cum_p[:, j])
+                preferences.append(torch.stack([labels, 1 - labels],dim=-1))
+        return torch.stack(preferences, dim=1)
+
+    def produce_labels(self, batch):
         if self.preference_type == 'high_health':
-            return self.high_health_preference(states, actions)
+            return self.high_health_preference(batch)
         elif self.preference_type == "true_indi_rewards":
-            return self.true_indi_rewards_preference(indi_rewards)
+            return self.true_indi_rewards_preference(batch)
+        elif self.preference_type == "policy":
+            return self.policy_preference(batch)
 

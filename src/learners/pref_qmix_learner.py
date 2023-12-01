@@ -37,7 +37,7 @@ class Pref_QLearner:
 
         self.log_stats_t = -self.args.learner_log_interval - 1
 
-        self.script_preferences = ScriptPreferences(args=self.args)
+        self.script_preferences = ScriptPreferences(args=self.args, prefer_mac=copy.deepcopy(mac))
         self.CEloss = th.nn.CrossEntropyLoss()
 
     def train(self, batch: EpisodeBatch, t_env: int, episode_num: int):
@@ -163,7 +163,7 @@ class Pref_QLearner:
         q_loss = (masked_q_td_error ** 2).sum() / q_mask.sum()
 
         # preference loss
-        preference_labels = self.script_preferences.produce_labels(states, actions, indi_rewards)
+        preference_labels = self.script_preferences.produce_labels(batch)
         preference_loss = self.cal_preference_loss(q_rewards, q_mask, preference_labels, self.args.n_agents)
 
         # if t_env > self.args.num_unsup_timesteps:
