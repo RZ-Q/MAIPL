@@ -179,7 +179,6 @@ def run_sequential(args, logger):
     last_test_T = -args.test_interval - 1
     last_log_T = 0
     model_save_time = 0
-    reset_flag = 1
 
     start_time = time.time()
     last_time = start_time
