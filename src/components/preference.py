@@ -58,7 +58,7 @@ class ScriptPreferences:
                 # make onehot labels
                 labels = 0.5 * (indi_rewards[:, :, i].sum(-1) == indi_rewards[:, :, j].sum(-1))
                 labels += 1.0 * (indi_rewards[:, :, i].sum(-1) < indi_rewards[:, :, j].sum(-1))
-                preferences.append(torch.stack([labels, 1-labels],dim=-1))
+                preferences.append(torch.stack([1-labels, labels],dim=-1))
         return torch.stack(preferences, dim=1)
 
     def policy_preference(self, batch):
@@ -87,7 +87,7 @@ class ScriptPreferences:
                 # make onehot labels
                 labels = 0.5 * (cum_p[:, i] == cum_p[:, j])
                 labels += 1.0 * (cum_p[:, i] < cum_p[:, j])
-                preferences.append(torch.stack([labels, 1 - labels],dim=-1))
+                preferences.append(torch.stack([1-labels, labels],dim=-1))
         return torch.stack(preferences, dim=1)
 
     def produce_labels(self, batch):
