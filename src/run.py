@@ -187,57 +187,22 @@ def run_sequential(args, logger):
     logger.console_logger.info("Beginning training for {} timesteps".format(args.t_max))
 
     while runner.t_env <= args.t_max:
-        if hasattr(args, "unsup_train") and args.unsup_train==True:
-            if runner.t_env < args.num_seed_timesteps:
-                episode_batch = runner.run(test_mode=False, random=True)
-            else:
-                episode_batch = runner.run(test_mode=False, random=False)
-            buffer.insert_episode_batch(episode_batch)
+        # Run for a whole episode at a time
+        episode_batch = runner.run(test_mode=False, random=False)
+        # print("run a batch")
+        buffer.insert_episode_batch(episode_batch)
 
-            if buffer.can_sample(args.batch_size):
-                episode_sample = buffer.sample(args.batch_size)
-                # Truncate batch to only filled timesteps
-                max_ep_t = episode_sample.max_t_filled()
-                episode_sample = episode_sample[:, :max_ep_t]
-                # make sample on args.device
-                if episode_sample.device != args.device:
-                    episode_sample.to(args.device)
-                # unsup
-                if runner.t_env < args.num_unsup_timesteps:
-                    # full_batch is used to compute state entropy
-                    full_batch = buffer.return_full_buffer()
-                    # Truncate full batch
-                    full_max_ep_t = full_batch.max_t_filled()
-                    full_batch = full_batch[:, :full_max_ep_t]
-                    learner.unsup_train(episode_sample, runner.t_env, episode, full_batch)
-                 # reset critic
-                elif runner.t_env >= args.num_unsup_timesteps and reset_flag:
-                    # reset once
-                    reset_flag = 0
-                    # reset critic
-                    learner.reset_critic()
-                    print("reset critic!")
-                    # learner train
-                    learner.train(episode_sample, runner.t_env, episode)
-                else:
-                    learner.train(episode_sample, runner.t_env, episode)
-        else:
-            # Run for a whole episode at a time
-            episode_batch = runner.run(test_mode=False, random=False)
-            # print("run a batch")
-            buffer.insert_episode_batch(episode_batch)
+        if buffer.can_sample(args.batch_size):
+            episode_sample = buffer.sample(args.batch_size)
 
-            if buffer.can_sample(args.batch_size):
-                episode_sample = buffer.sample(args.batch_size)
+            # Truncate batch to only filled timesteps
+            max_ep_t = episode_sample.max_t_filled()
+            episode_sample = episode_sample[:, :max_ep_t]
 
-                # Truncate batch to only filled timesteps
-                max_ep_t = episode_sample.max_t_filled()
-                episode_sample = episode_sample[:, :max_ep_t]
+            if episode_sample.device != args.device:
+                episode_sample.to(args.device)
 
-                if episode_sample.device != args.device:
-                    episode_sample.to(args.device)
-
-                learner.train(episode_sample, runner.t_env, episode)
+            learner.train(episode_sample, runner.t_env, episode)
 
         # Execute test runs once in a while
         n_test_runs = max(1, args.test_nepisode // runner.batch_size)
