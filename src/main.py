@@ -12,6 +12,7 @@ from utils.logging import get_logger
 import yaml
 
 from run import run
+from run_globalRM import run_globalRM
 
 SETTINGS['CAPTURE_MODE'] = "fd" # set to "no" if you want to see stdout/stderr in console
 logger = get_logger()
@@ -32,7 +33,11 @@ def my_main(_run, _config, _log):
     config['env_args']['seed'] = config["seed"]
 
     # run the framework
-    run(_run, config, _log)
+    if "run" in config.keys():
+        if config["run"] == "globalRM":
+            run_globalRM(_run, config, _log)
+    else:
+        run(_run, config, _log)
 
 
 def _get_config(params, arg_name, subfolder):
