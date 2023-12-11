@@ -3,9 +3,10 @@ from functools import partial
 from torch.distributions import Categorical
 from components.episode_buffer import EpisodeBatch
 import numpy as np
+import torch
+import torch.nn.functional as F
 
-
-class EpisodeRunner:
+class GlobalRMEpisodeRunner:
 
     def __init__(self, args, logger):
         self.args = args
@@ -21,6 +22,8 @@ class EpisodeRunner:
 
         self.train_returns = []
         self.test_returns = []
+        self.train_returns_hat = []
+        self.test_returns_hat = []
         self.train_stats = {}
         self.test_stats = {}
         # individual returns log
@@ -54,6 +57,7 @@ class EpisodeRunner:
 
         terminated = False
         episode_return = 0
+        episode_return_hat = 0
         episode_indi_return = np.zeros(self.args.n_agents)
         self.mac.init_hidden(batch_size=self.batch_size)
 
@@ -97,6 +101,23 @@ class EpisodeRunner:
             del env_info["indi_reward"]
 
             self.batch.update(post_transition_data, ts=self.t)
+            if reward_model is not None:
+                if self.args.actions_onehot:
+                    a = F.one_hot(actions, self.args.n_actions)
+                else:
+                    a = actions.unsqueeze(-1)
+                if self.args.state_or_obs:
+                    s = torch.tensor(np.array(pre_transition_data['state'])).to(self.args.device)
+                    sa = torch.cat((s, a.view(1, -1)), dim=-1)
+                else:
+                    s = torch.tensor(np.array(pre_transition_data['obs'])) .to(self.args.device)
+                    sa = torch.cat((s, a), dim=-1).view(1, -1)
+                reward_hat = reward_model.r_hat(sa)
+                episode_return_hat += reward_hat[0][0].item()
+                self.batch.update({"reward_hat": [(reward_hat[0][0].item(),)]}, ts=self.t)
+            else:
+                episode_return_hat += 0
+                self.batch.update({"reward_hat": [(0,)]}, ts=self.t)
 
             self.t += 1
 
@@ -113,6 +134,7 @@ class EpisodeRunner:
 
         cur_stats = self.test_stats if test_mode else self.train_stats
         cur_returns = self.test_returns if test_mode else self.train_returns
+        cur_returns_hat = self.test_returns_hat if test_mode else self.train_returns_hat
         cur_indi_returns = self.test_indi_returns if test_mode else self.train_indi_returns
         log_prefix = "test_" if test_mode else ""
         # cur_stats.update({k: cur_stats.get(k, 0) + env_info.get(k, 0) for k in set(cur_stats) | set(env_info)})
@@ -128,22 +150,26 @@ class EpisodeRunner:
             self.t_env += self.t
 
         cur_returns.append(episode_return)
+        cur_returns_hat.append(episode_return_hat)
         cur_indi_returns.append(episode_indi_return)
 
         if test_mode and (len(self.test_returns) == self.args.test_nepisode):
-            self._log(cur_returns, cur_indi_returns, cur_stats, log_prefix)
+            self._log(cur_returns, cur_returns_hat, cur_indi_returns, cur_stats, log_prefix)
         elif self.t_env - self.log_train_stats_t >= self.args.runner_log_interval:
-            self._log(cur_returns, cur_indi_returns, cur_stats, log_prefix)
+            self._log(cur_returns, cur_returns_hat, cur_indi_returns, cur_stats, log_prefix)
             if hasattr(self.mac.action_selector, "epsilon"):
                 self.logger.log_stat("epsilon", self.mac.action_selector.epsilon, self.t_env)
             self.log_train_stats_t = self.t_env
 
         return self.batch
 
-    def _log(self, returns, indi_returns, stats, prefix):
+    def _log(self, returns, returns_hat, indi_returns, stats, prefix):
         self.logger.log_stat(prefix + "return_mean", np.mean(returns), self.t_env)
         self.logger.log_stat(prefix + "return_std", np.std(returns), self.t_env)
         returns.clear()
+        self.logger.log_stat(prefix + "return_hat_mean", np.mean(returns_hat), self.t_env)
+        self.logger.log_stat(prefix + "return_hat_std", np.std(returns_hat), self.t_env)
+        returns_hat.clear()
         for i in range(self.args.n_agents):
             self.logger.log_stat(prefix + "return_mean" + str(i), np.mean(np.array(indi_returns)[:, i]), self.t_env)
             self.logger.log_stat(prefix + "return_std" + str(i), np.std(np.array(indi_returns)[:, i]), self.t_env)

@@ -14,6 +14,7 @@ from runners import REGISTRY as r_REGISTRY
 from controllers import REGISTRY as mac_REGISTRY
 from components.episode_buffer import ReplayBuffer
 from components.transforms import OneHot
+from components.reward_model import GlobalRewardModel
 
 
 def run_globalRM(_run, _config, _log):
@@ -105,10 +106,12 @@ def run_sequential(args, logger):
         "indi_terminated": {"vshape": (env_info["n_agents"],), "dtype": th.uint8},
         "indi_reward": {"vshape":(env_info["n_agents"],), "dtype": th.float32},
     }
+    args.action_shape = scheme["actions"]["vshape"][0]
     groups = {"agents": args.n_agents}
     preprocess = {"actions": ("actions_onehot", [OneHot(out_dim=args.n_actions)])}
 
     buffer = ReplayBuffer(
+        args,
         scheme,
         groups,
         args.buffer_size,
@@ -125,6 +128,9 @@ def run_sequential(args, logger):
 
     # Learner
     learner = le_REGISTRY[args.learner](mac, buffer.scheme, logger, args)
+
+    # Reward model
+    reward_model = GlobalRewardModel(args, mac)
 
     if args.use_cuda:
         learner.cuda()
@@ -168,6 +174,8 @@ def run_sequential(args, logger):
     last_test_T = -args.test_interval - 1
     last_log_T = 0
     model_save_time = 0
+    reset_flag = 1
+    interact_count = 0
 
     start_time = time.time()
     last_time = start_time
@@ -179,20 +187,81 @@ def run_sequential(args, logger):
         if runner.t_env < args.num_seed_timesteps:
             episode_batch = runner.run(test_mode=False, random=True)
         else:
-            episode_batch = runner.run(test_mode=False, random=False)  #TODO: add reward model
+            episode_batch = runner.run(test_mode=False, random=False, reward_model=reward_model)
         buffer.insert_episode_batch(episode_batch)
 
         if buffer.can_sample(args.batch_size):
-            episode_sample = buffer.sample(args.batch_size)
+            # unsup
+            if runner.t_env < args.num_unsup_timesteps:
+                episode_sample = buffer.sample(args.batch_size)
 
-            # Truncate batch to only filled timesteps
-            max_ep_t = episode_sample.max_t_filled()
-            episode_sample = episode_sample[:, :max_ep_t]
+                # Truncate batch to only filled timesteps
+                max_ep_t = episode_sample.max_t_filled()
+                episode_sample = episode_sample[:, :max_ep_t]
 
-            if episode_sample.device != args.device:
-                episode_sample.to(args.device)
+                if episode_sample.device != args.device:
+                    episode_sample.to(args.device)
+                
+                # full_batch is used to compute state entropy
+                full_batch = buffer.return_full_buffer()
+                # Truncate full batch
+                full_max_ep_t = full_batch.max_t_filled()
+                full_batch = full_batch[:, :full_max_ep_t]
+                learner.unsup_train(episode_sample, runner.t_env, episode, full_batch)
+            # reset critic
+            elif runner.t_env >= args.num_unsup_timesteps and reset_flag:
+                # reset once
+                reset_flag = 0
+                # first learn reward
+                reward_model.learn_reward(buffer)
+                # relabel buffer
+                buffer.relabel_with_globalRM(reward_model)
 
-            learner.train(episode_sample, runner.t_env, episode)
+                # sample after relabel
+                episode_sample = buffer.sample(args.batch_size)
+                # Truncate batch to only filled timesteps
+                max_ep_t = episode_sample.max_t_filled()
+                episode_sample = episode_sample[:, :max_ep_t]
+                if episode_sample.device != args.device:
+                    episode_sample.to(args.device)
+                
+                # reset critic
+                if args.reset_critic:
+                    learner.reset_critic()
+                    print("reset critic!")
+                else:
+                    print("not reset critic")
+                # learner train
+                learner.train(episode_sample, runner.t_env, episode)
+                # reset interact_count
+                interact_count = 0
+            
+            elif runner.t_env >= args.num_unsup_timesteps and (not reset_flag):
+                if reward_model.total_feedback < args.max_feedback:
+                    if interact_count == args.num_interact:
+                        # update reward model ma_size schedule
+                        if args.reward_schedule:
+                            frac = (args.t_max - runner.t_env) / args.t_max
+                            if frac == 0:
+                                frac = 0.01
+                        else:
+                            frac = 1
+                        reward_model.change_batch(frac)
+                        reward_model.learn_reward(buffer)
+                        buffer.relabel_with_globalRM(reward_model)
+                        interact_count = 0
+                
+                episode_sample = buffer.sample(args.batch_size)
+                # Truncate batch to only filled timesteps
+                max_ep_t = episode_sample.max_t_filled()
+                episode_sample = episode_sample[:, :max_ep_t]
+
+                if episode_sample.device != args.device:
+                    episode_sample.to(args.device)
+
+                learner.train(episode_sample, runner.t_env, episode)
+        
+        interact_count += 1
 
         # Execute test runs once in a while
         n_test_runs = max(1, args.test_nepisode // runner.batch_size)
