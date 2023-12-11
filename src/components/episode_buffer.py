@@ -1,6 +1,7 @@
 import torch as th
 import numpy as np
 from types import SimpleNamespace as SN
+from components.reward_model import GlobalRewardModel
 
 
 class EpisodeBatch:
@@ -214,11 +215,12 @@ class EpisodeBatch:
 
 
 class ReplayBuffer(EpisodeBatch):
-    def __init__(self, scheme, groups, buffer_size, max_seq_length, preprocess=None, device="cpu"):
+    def __init__(self, args, scheme, groups, buffer_size, max_seq_length, preprocess=None, device="cpu"):
         super(ReplayBuffer, self).__init__(scheme, groups, buffer_size, max_seq_length, preprocess=preprocess, device=device)
         self.buffer_size = buffer_size  # same as self.batch_size but more explicit
         self.buffer_index = 0
         self.episodes_in_buffer = 0
+        self.args = args
 
     def insert_episode_batch(self, ep_batch):
         if self.buffer_index + ep_batch.batch_size <= self.buffer_size:
@@ -249,8 +251,44 @@ class ReplayBuffer(EpisodeBatch):
             ep_ids = np.random.choice(self.episodes_in_buffer, batch_size, replace=False)
             return self[ep_ids]
     
+    def sample_latest(self, batch_size):
+        if batch_size > self.episodes_in_buffer:
+            return self[:]
+        else:
+            if self.buffer_index - batch_size < 0:
+                return self[self.buffer_index - batch_size:] + self[:self.buffer_index]
+            else:
+                return self[self.buffer_index - batch_size:self.buffer_index]
+
+
     def return_full_buffer(self):
         return self[:-1]
+    
+    def relabel_with_globalRM(self, reward_model:GlobalRewardModel):
+        batch_size = 300
+        total_iter = int(self.episodes_in_buffer / batch_size)
+        if self.episodes_in_buffer > batch_size * total_iter:
+            total_iter += 1
+        for index in range(total_iter):
+            last_index = (index + 1) * batch_size
+            if (index + 1) * batch_size > self.episodes_in_buffer:
+                last_index = self.episodes_in_buffer
+            
+            if self.args.actions_onehot:
+                actions = self[index * batch_size : last_index]["actions_onehot"]
+            else:
+                actions = self[index * batch_size : last_index]["actions"]
+             
+            bs, seq_len, _, _ = actions.shape
+            if self.args.state_or_obs:
+                states = self[index * batch_size : last_index]["state"]   
+                inputs = th.cat([states, actions.view(bs, seq_len, -1)], dim=-1)
+            else:
+                obses = self[index * batch_size : last_index]["obs"]
+                inputs = th.cat((obses, actions), dim=-1)
+                inputs = inputs.view(bs, seq_len, -1)
+            pred_reward = reward_model.r_hat(inputs).to('cpu')
+            self[index * batch_size : last_index]["reward_hat"] = pred_reward
 
     def __repr__(self):
         return "ReplayBuffer. {}/{} episodes. Keys:{} Groups:{}".format(self.episodes_in_buffer,
