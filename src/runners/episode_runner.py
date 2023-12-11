@@ -89,7 +89,6 @@ class EpisodeRunner:
                 "actions": actions,
                 "reward": [(reward,)],
                 "terminated": [(terminated != env_info.get("episode_limit", False),)],
-                # self.env.get_indi_terminated(): (True, False, False)
                 "indi_terminated": [self.env.get_indi_terminated()],
                 "indi_reward": list(env_info["indi_reward"]),
             }
@@ -151,6 +150,6 @@ class EpisodeRunner:
         indi_returns.clear()
 
         for k, v in stats.items():
-            if k != "n_episodes" and k != "indi_reward":
+            if k != "n_episodes":
                 self.logger.log_stat(prefix + k + "_mean" , v/stats["n_episodes"], self.t_env)
         stats.clear()
