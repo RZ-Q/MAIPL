@@ -6,7 +6,7 @@ epsilon_start: 1.0
 epsilon_finish: 0.05
 epsilon_anneal_time: 50000
 
-runner: "episode"
+runner: "global_episode"
 
 buffer_size: 5000
 
@@ -35,7 +35,29 @@ pretrain_timesteps: 10000  # 10000 for 3m, 200000 for 5mvs6m
 
 # --- global RM ---
 run: "globalRM"
-active: "sig"
-reward_hidden_size: 256
+# env interact
 num_seed_timesteps: 2000  # TODO: test
 num_unsup_timesteps: 10000
+k: 6  # for unsup training
+num_interact: 150
+reset_critic: True
+max_feedback: 100000
+reward_schedule: False
+# reward model
+active: "sig"  # tan sig
+reward_lr: 0.0003
+reward_hidden_size: 256
+reward_update: 200
+ensemble_size: 3
+state_or_obs: True
+actions_onehot: True
+reward_train_batch_size: 128
+loss_func: "cross entropy"  # KL
+# sample config
+sample_episode_size: 100  # sample these episodes from buffer
+sample_segment_size: 128  # sample these segmnet pairs from sampled episodes
+segment_size: 10  # should not be larger than max_seq_len in episode_batch
+segment_capacity: 50000  # save these segment pairs
+# preference type
+global_preference_type: "true_rewards"
+policy_dir: ""
