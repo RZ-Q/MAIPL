@@ -178,8 +178,7 @@ class Qdiffer_globalRM_learner:
 
             self.log_stats_t = t_env
 
-    def unsup_train(self, batch: EpisodeBatch, t_env: int, episode_num: int, full_batch: EpisodeBatch,
-    ):
+    def unsup_train(self, batch: EpisodeBatch, t_env: int, episode_num: int, full_batch: EpisodeBatch):
         # state entropy rewards stuff
         # Get the relevant quantities
         # get batch mask
@@ -294,7 +293,7 @@ class Qdiffer_globalRM_learner:
         q_td_error = chosen_action_qvals - q_targets.detach()  # (B,T,n_agents)
 
         q_mask = (batch["filled"][:, :-1].float().repeat(1, 1, self.args.n_agents))  # (B,T,n_agents)
-        q_mask[:, 1:] = (q_mask[:, 1:] * (1 - indi_terminated[:, :-1])  (1 - terminated[:, :-1]).repeat(1, 1, self.args.n_agents))
+        q_mask[:, 1:] = (q_mask[:, 1:] * (1 - indi_terminated[:, :-1]) * (1 - terminated[:, :-1]).repeat(1, 1, self.args.n_agents))
         # q_mask[:, 1:] = q_mask[:, 1:] * (1 - indi_terminated[:, :-1])
         q_mask = q_mask.expand_as(q_td_error)
 
@@ -396,7 +395,6 @@ class Qdiffer_globalRM_learner:
 
         return state_entropy
 
-
     # def cal_indi_reward(grad_qtot_qi, td_error, chosen_action_qvals, target_max_qvals):
     def cal_indi_reward(self, grad_qtot_qi, mixer_td_error, qi, target_qi, indi_terminated):
         # input: grad_qtot_qi (B,T,n_agents)  mixer_td_error (B,T,1)  qi (B,T,n_agents)  indi_terminated (B,T,n_agents)
@@ -409,6 +407,23 @@ class Qdiffer_globalRM_learner:
         if self.mixer is not None:
             self.target_mixer.load_state_dict(self.mixer.state_dict())
         self.logger.console_logger.info("Updated target network")
+
+    def reset_critic(self):
+        if self.args.mixer is not None:
+            if self.args.mixer == "vdn":
+                self.mixer = VDNMixer()
+            elif self.args.mixer == "qmix":
+                self.mixer = QMixer(self.args)
+            else:
+                raise ValueError("Mixer {} not recognised.".format(self.args.mixer))
+            self.target_mixer = copy.deepcopy(self.mixer)
+            # reset to cuda is use_cuda
+            if self.args.use_cuda:
+                self.mixer.cuda()
+                self.target_mixer.cuda()
+
+            self.mixer_params = list(self.mixer.parameters())
+            self.mixer_optimizer = RMSprop(params=self.mixer_params, lr=self.args.lr)
 
     def cuda(self):
         self.mac.cuda()
