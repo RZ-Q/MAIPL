@@ -120,6 +120,7 @@ def run_sequential(args, logger):
     preprocess = {"actions": ("actions_onehot", [OneHot(out_dim=args.n_actions)])}
 
     buffer = ReplayBuffer(
+        args,
         scheme,
         groups,
         args.buffer_size,
