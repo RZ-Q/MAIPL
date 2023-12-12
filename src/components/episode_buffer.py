@@ -253,10 +253,12 @@ class ReplayBuffer(EpisodeBatch):
     
     def sample_latest(self, batch_size):
         if batch_size > self.episodes_in_buffer:
-            return self[:]
+            return self[:self.buffer_index]
         else:
             if self.buffer_index - batch_size < 0:
-                return self[self.buffer_index - batch_size:] + self[:self.buffer_index]
+                index = [i for i in range(self.buffer_index)] + \
+                    [i for i in range(self.buffer_index - batch_size + self.buffer_size, self.buffer_size)]
+                return self[index]
             else:
                 return self[self.buffer_index - batch_size:self.buffer_index]
 
