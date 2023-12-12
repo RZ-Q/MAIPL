@@ -32,11 +32,29 @@ def run_globalRM(_run, _config, _log):
     _log.info("\n\n" + experiment_params + "\n")
 
     # configure tensorboard logger
-    unique_token = "{}__{}__{}__{}__{}".format(
+    unique_token = """GM_{}__{}__{}__{}__seed{}__unsup{}__interact{}__reset{}__act{}_\
+_RMlr{}__RMhs{}__ensem{}__{}__{}__bs{}__loss{}__es{}__ss{}__segment{}__cap{}__{}__{}""".format(
         args.name,
         args.env_args["map_name"],
         args.seed,
         "pos" if args.env_args["reward_only_positive"] else "neg", 
+        args.num_seed_timesteps,
+        args.num_unsup_timesteps,
+        args.num_interact,
+        "true" if args.reset_critic else "false",
+        args.active,
+        args.reward_lr,
+        args.reward_hidden_size,
+        args.ensemble_size,
+        "state" if args.state_or_obs else "obs",
+        "onehot" if args.actions_onehot else "action",
+        args.reward_train_batch_size,
+        args.loss_func,
+        args.sample_episode_size,
+        args.sample_segment_size,
+        args.segment_size,
+        args.segment_capacity,
+        args.global_preference_type,
         datetime.datetime.now().strftime("%Y-%m-%d_%H-%M-%S"),
     )
     args.unique_token = unique_token
