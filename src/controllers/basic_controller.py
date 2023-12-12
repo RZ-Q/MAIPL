@@ -53,6 +53,13 @@ class BasicMAC:
 
         return agent_outs.view(ep_batch.batch_size, self.n_agents, -1)
 
+    def forward_query(self, query, t):
+        bs = len(query["state"])
+        agent_inputs = self._build_inputs_query(query, t).to(self.args.device)
+        agent_outs, self.hidden_states = self.agent(agent_inputs, self.hidden_states)
+
+        return agent_outs.view(bs, self.n_agents, -1)
+
     def init_hidden(self, batch_size):
         self.hidden_states = self.agent.init_hidden().unsqueeze(0).expand(batch_size, self.n_agents, -1)  # bav
 
@@ -88,6 +95,21 @@ class BasicMAC:
         if self.args.obs_agent_id:
             inputs.append(th.eye(self.n_agents, device=batch.device).unsqueeze(0).expand(bs, -1, -1))
 
+        inputs = th.cat([x.reshape(bs*self.n_agents, -1) for x in inputs], dim=1)
+        return inputs
+    
+    def _build_inputs_query(self, query, t):
+        bs = len(query["state"])
+        inputs = []
+        inputs.append(th.cat(query["obs"], dim=0)[:, t])
+        if self.args.obs_last_action:
+            if t == 0:
+                inputs.append(th.zeros_like(th.cat(query["actions_onehot"], dim=0)[:, t]))
+            else:
+                inputs.append(th.cat(query["actions_onehot"], dim=0)[:, t-1])
+        if self.args.obs_agent_id:
+            inputs.append(th.eye(self.n_agents, device=query["state"][0].device).unsqueeze(0).expand(bs, -1, -1))
+        
         inputs = th.cat([x.reshape(bs*self.n_agents, -1) for x in inputs], dim=1)
         return inputs
 
