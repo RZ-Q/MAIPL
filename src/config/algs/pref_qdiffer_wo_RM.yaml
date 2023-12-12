@@ -15,14 +15,14 @@ target_update_interval: 200
 
 # use the Q_Learner to train
 agent_output_type: "q"
-learner: "pref_q_learner"
+learner: "pref_q_learner_wo_RM"
 double_q: True
 mixer: "qmix"
 mixing_embed_dim: 32
 hypernet_layers: 2
 hypernet_embed: 64
 
-name: "pref_qmix"
+name: "pref_qdiffer_wo_RM"
 
 # preference config
 lamda: 0.5
