@@ -63,7 +63,7 @@ class GlobalRewardModel:
         self.train_batch_size = self.args.reward_train_batch_size
         self.active = self.args.active
         self.construct_ensemble()
-        if self.args.loss_func == "cross entropy":
+        if self.args.loss_func == "cross_entropy":
             self.loss_func = self.cross_entropy_loss 
         elif self.args.loss_func == "KL":
             self.loss_func = self.KL_loss
@@ -89,8 +89,11 @@ class GlobalRewardModel:
         self.buffer_full = False
 
         # label stuff
-        # self.script_labeler = ScriptGlobalRewardModelLabels(self.args, self.mac)
         self.global_preference_type = self.args.global_preference_type
+        if self.global_preference_type  == "policy":
+            self.mac.load_models(self.args.policy_dir)
+            if self.args.use_cuda:
+                self.mac.cuda()
     
     def change_batch(self, new_frac):
         self.sample_segment_size = int(new_frac * self.origin_sample_segment_size)
@@ -186,6 +189,36 @@ class GlobalRewardModel:
             # label = 0.5 * (r_1 == r_2)
             label = 1.0 * (r_1 < r_2)
             return torch.cat((1-label, label),dim=-1)
+        elif self.global_preference_type == "policy":
+            mac_out1, mac_out2 = [], []
+            for t in range(query1["state"][0].shape[1]):
+                self.mac.init_hidden(len(query1["state"]))
+                agent_outs1 = self.mac.forward_query(query1, t=t)
+                agent_outs2 = self.mac.forward_query(query2, t=t)
+                mac_out1.append(agent_outs1)
+                mac_out2.append(agent_outs2)
+            
+            mac_out1 = torch.stack(mac_out1, dim=1)  # Concat over time
+            mac_out2 = torch.stack(mac_out2, dim=1)
+            avail_actions1 = torch.cat(query1["avail_actions"], dim=0)
+            avail_actions2 = torch.cat(query2["avail_actions"], dim=0)
+            actions1 = torch.cat(query1["actions"], dim=0).to(self.args.device)
+            actions2 = torch.cat(query2["actions"], dim=0).to(self.args.device)
+            mask1 = torch.cat(query1["mask"], dim=0).to(self.args.device)
+            mask2 = torch.cat(query2["mask"], dim=0).to(self.args.device)
+            
+            mac_out1[avail_actions1 == 0] = -1e10
+            mac_out2[avail_actions2 == 0] = -1e10
+            mac_out1 = torch.softmax(mac_out1, dim=-1)
+            mac_out2 = torch.softmax(mac_out2, dim=-1)
+
+            chosen_p1 = torch.gather(mac_out1, dim=3, index=actions1).squeeze(3)
+            chosen_p2 = torch.gather(mac_out2, dim=3, index=actions2).squeeze(3)
+            # multiple a small value for 0.0
+            cum_p1 = torch.prod(torch.prod(chosen_p1 * mask1 + (1 - mask1), dim=1) * 1e2, dim=-1)
+            cum_p2 = torch.prod(torch.prod(chosen_p2 * mask2 + (1 - mask2), dim=1) * 1e2, dim=-1)
+            label = 1.0 * (cum_p1 < cum_p2)
+            return torch.stack((1-label, label),dim=-1)
     
     def put_queries(self, query1, query2, labels):
         total_samples = len(query1["state"])
