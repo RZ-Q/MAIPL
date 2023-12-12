@@ -4,8 +4,8 @@ class ScriptPreferences:
     def __init__(self, args, prefer_mac) -> None:
         self.args = args
         self.map_name = args.env_args["map_name"]
-        self.preference_type = args.preference_type
-        if self.args.preference_type == "policy":
+        self.preference_type = args.local_preference_type
+        if self.preference_type == "policy":
             self.prefer_mac = prefer_mac
             self.prefer_mac.load_models(self.args.policy_dir)
             if self.args.use_cuda:

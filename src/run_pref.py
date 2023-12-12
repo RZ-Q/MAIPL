@@ -14,10 +14,10 @@ from runners import REGISTRY as r_REGISTRY
 from controllers import REGISTRY as mac_REGISTRY
 from components.episode_buffer import ReplayBuffer
 from components.transforms import OneHot
-from components.reward_model import GlobalRewardModel
+from components.reward_model import RewardModel
 
 
-def run_globalRM(_run, _config, _log):
+def run_pref(_run, _config, _log):
     # check args sanity
     _config = args_sanity_check(_config, _log)
 
@@ -34,7 +34,7 @@ def run_globalRM(_run, _config, _log):
     # configure tensorboard logger
     unique_token = """GM_{}__{}__{}__{}__interact{}__reset{}__act{}_\
 __RMhs{}__ensem{}__{}__{}__bs{}__loss{}__es{}__ss{}__segment{}__cap{}__{}__{}\
-__{}__localtype{}__{}""".format(
+__localtype{}__{}""".format(
         args.name,
         args.env_args["map_name"],
         args.seed,
@@ -54,7 +54,6 @@ __{}__localtype{}__{}""".format(
         args.segment_capacity,
         args.global_preference_type,
         "schedule" if args.reward_schedule else "unlimit",
-        "localpref" if args.local_script_preference else "nolocal",
         args.local_preference_type,
         datetime.datetime.now().strftime("%Y-%m-%d_%H-%M-%S"),
     )
@@ -124,6 +123,7 @@ def run_sequential(args, logger):
         "terminated": {"vshape": (1,), "dtype": th.uint8},
         "indi_terminated": {"vshape": (env_info["n_agents"],), "dtype": th.uint8},
         "indi_reward": {"vshape":(env_info["n_agents"],), "dtype": th.float32},
+        "indi_reward_hat":{"vshape":(env_info["n_agents"],)},
     }
     args.action_shape = scheme["actions"]["vshape"][0]
     groups = {"agents": args.n_agents}
@@ -149,7 +149,7 @@ def run_sequential(args, logger):
     learner = le_REGISTRY[args.learner](mac, buffer.scheme, logger, args)
 
     # Reward model
-    reward_model = GlobalRewardModel(args, mac)
+    reward_model = RewardModel(args, mac)
 
     if args.use_cuda:
         learner.cuda()

@@ -57,5 +57,7 @@ global_preference_type: "true_rewards"  # policy true_rewards
 policy_dir: "results/models/qdiffer__5m_vs_6m__667792542__neg__2023-12-01_13-22-48/1500048"
 
 # --- local preference ---
+local_script_preference: False
 # pretrain
-pretrain_timesteps: 200000  # 10000 for 3m, 200000 for 5mvs6m
+lcoal_pretrain_timesteps: 200000  # 10000 for 3m, 200000 for 5mvs6m
+local_preference_type: "true_indi_rewards"  # policy

@@ -7,7 +7,7 @@ from torch.optim import RMSprop
 from components.preference import ScriptPreferences
 
 
-class Qdiffer_globalRM_learner:
+class Pref_QMIX_learner:
     def __init__(self, mac, scheme, logger, args):
         self.args = args
         self.mac = mac
