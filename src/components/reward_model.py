@@ -617,10 +617,10 @@ class GlobalRewardModel:
             if self.actions_onehot:
                 state_segment1 = torch.cat((torch.cat(query1["state"][:max_index], dim=0),
                     torch.cat(query1["actions_onehot"][:max_index], dim=0).view(
-                        total_samples, self.segment_size, -1)), dim=-1)
+                        max_index, self.segment_size, -1)), dim=-1)
                 state_segment2 = torch.cat((torch.cat(query2["state"][:max_index], dim=0),
                     torch.cat(query2["actions_onehot"][:max_index], dim=0).view(
-                        total_samples, self.segment_size, -1)), dim=-1)
+                        max_index, self.segment_size, -1)), dim=-1)
                 obs_segment1 = torch.cat((torch.cat(query1["obs"][:max_index], dim=0),
                     torch.cat(query1["actions_onehot"][:max_index], dim=0)), dim=-1)
                 obs_segment2 = torch.cat((torch.cat(query2["obs"][:max_index], dim=0),
@@ -647,10 +647,10 @@ class GlobalRewardModel:
                 if self.actions_onehot:
                     state_segment1 = torch.cat((torch.cat(query1["state"][max_index:], dim=0),
                         torch.cat(query1["actions_onehot"][max_index:], dim=0).view(
-                            total_samples, self.segment_size, -1)), dim=-1)
+                            remain, self.segment_size, -1)), dim=-1)
                     state_segment2 = torch.cat((torch.cat(query2["state"][max_index:], dim=0),
                         torch.cat(query2["actions_onehot"][max_index:], dim=0).view(
-                            total_samples, self.segment_size, -1)), dim=-1)
+                            remain, self.segment_size, -1)), dim=-1)
                     obs_segment1 = torch.cat((torch.cat(query1["obs"][max_index:], dim=0),
                         torch.cat(query1["actions_onehot"][max_index:], dim=0)), dim=-1)
                     obs_segment2 = torch.cat((torch.cat(query2["obs"][max_index:], dim=0),
