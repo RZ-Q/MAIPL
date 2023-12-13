@@ -32,21 +32,17 @@ def run_globalRM(_run, _config, _log):
     _log.info("\n\n" + experiment_params + "\n")
 
     # configure tensorboard logger
-    unique_token = """GM_{}__{}__{}__{}__interact{}__reset{}__act{}_\
-__RMhs{}__ensem{}__{}__{}__bs{}__loss{}__es{}__ss{}__segment{}__cap{}__{}__{}\
-__{}__localtype{}__{}""".format(
+    unique_token = """GM_{}__{}__{}__{}__interact{}__act{}_\
+_{}__{}__loss{}__es{}__ss{}__segment{}__cap{}__{}__{}\
+__{}__localtype{}__lamda{}__{}""".format(
         args.name,
         args.env_args["map_name"],
         args.seed,
         "pos" if args.env_args["reward_only_positive"] else "neg", 
         args.num_interact,
-        "true" if args.reset_critic else "false",
         args.active,
-        args.reward_hidden_size,
-        args.ensemble_size,
         "state" if args.state_or_obs else "obs",
         "onehot" if args.actions_onehot else "action",
-        args.reward_train_batch_size,
         args.loss_func,
         args.sample_episode_size,
         args.sample_segment_size,
@@ -56,6 +52,7 @@ __{}__localtype{}__{}""".format(
         "schedule" if args.reward_schedule else "unlimit",
         "localpref" if args.local_script_preference else "nolocal",
         args.local_preference_type,
+        args.lamda,
         datetime.datetime.now().strftime("%Y-%m-%d_%H-%M-%S"),
     )
     args.unique_token = unique_token
