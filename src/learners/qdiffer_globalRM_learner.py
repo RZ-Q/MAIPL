@@ -134,7 +134,8 @@ class Qdiffer_globalRM_learner:
         mixer_grad_norm = th.nn.utils.clip_grad_norm_(self.mixer_params, self.args.grad_norm_clip)
         # grad_norm = th.nn.utils.clip_grad_norm_(self.params, self.args.grad_norm_clip)
         self.mixer_optimizer.step()
-        q_rewards = self.cal_indi_reward(grad_qtot_qi, td_error, chosen_action_qvals, target_max_qvals, indi_terminated) #(B,T,n_agents)
+        
+        q_rewards = self.cal_indi_reward(grad_qtot_qi, td_error.clone().detach(), chosen_action_qvals, target_max_qvals, indi_terminated) #(B,T,n_agents)
         q_rewards_clone = q_rewards.clone().detach()
 
         # Calculate 1-step Q-Learning targets
