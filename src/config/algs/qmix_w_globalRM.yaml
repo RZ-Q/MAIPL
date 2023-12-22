@@ -34,15 +34,15 @@ num_unsup_timesteps: 10000
 k: 6  # for unsup training
 num_interact: 150
 reset_critic: True
-max_feedback: 100000
-reward_schedule: False
+max_feedback: 20000
+reward_schedule: True
 # reward model
 active: "tan"  # tan sig
 reward_lr: 0.0003
 reward_hidden_size: 256
 reward_update: 200
 ensemble_size: 3
-state_or_obs: False
+state_or_obs: True
 actions_onehot: True
 reward_train_batch_size: 128
 loss_func: "cross_entropy"  # KL
