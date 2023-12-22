@@ -51,7 +51,7 @@ class Qdiffer_globalRM_learner:
         chosen_action_qvals before mixer shape [bs, ep_len, num_agents]
         target_mac_out shape [bs, ep_len, num_agent, num_action]
         """
-        rewards = batch["reward"][:, :-1]
+        rewards = batch["reward_hat"][:, :-1]
         actions = batch["actions"][:, :-1]
         terminated = batch["terminated"][:, :-1].float()
         mask = batch["filled"][:, :-1].float()

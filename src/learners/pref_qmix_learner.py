@@ -51,7 +51,10 @@ class Pref_QMIX_learner:
         chosen_action_qvals before mixer shape [bs, ep_len, num_agents]
         target_mac_out shape [bs, ep_len, num_agent, num_action]
         """
-        rewards = batch["reward"][:, :-1]
+        if self.args.use_global_reward:
+            rewards = batch["reward_hat"][:, :-1]
+        else:
+            rewards = batch["reward"][:, :-1]
         actions = batch["actions"][:, :-1]
         terminated = batch["terminated"][:, :-1].float()
         mask = batch["filled"][:, :-1].float()
@@ -158,7 +161,7 @@ class Pref_QMIX_learner:
         preference_labels = self.script_preferences.produce_labels(batch)
         preference_loss = self.cal_preference_loss(q_rewards, q_mask, preference_labels, self.args.n_agents)
 
-        if self.args.local_script_preference:
+        if self.args.use_local_reward:
             if t_env > self.args.lcoal_pretrain_timesteps:
                 q_total_loss = q_loss / q_loss.abs().detach() + self.args.lamda * preference_loss / preference_loss.abs().detach()
             else:

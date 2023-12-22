@@ -1,7 +1,7 @@
 import torch as th
 import numpy as np
 from types import SimpleNamespace as SN
-from components.reward_model import GlobalRewardModel
+from components.reward_model import GlobalRewardModel, RewardModel
 
 
 class EpisodeBatch:
@@ -291,6 +291,34 @@ class ReplayBuffer(EpisodeBatch):
                 inputs = inputs.view(bs, seq_len, -1)
             pred_reward = reward_model.r_hat(inputs).to('cpu')
             self[index * batch_size : last_index]["reward_hat"] = pred_reward
+    def relabel_with_bothRM(self, reward_model:RewardModel):
+        batch_size = 300
+        total_iter = int(self.episodes_in_buffer / batch_size)
+        if self.episodes_in_buffer > batch_size * total_iter:
+            total_iter += 1
+        for index in range(total_iter):
+            last_index = (index + 1) * batch_size
+            if (index + 1) * batch_size > self.episodes_in_buffer:
+                last_index = self.episodes_in_buffer
+            
+            if self.args.actions_onehot:
+                actions = self[index * batch_size : last_index]["actions_onehot"]
+            else:
+                actions = self[index * batch_size : last_index]["actions"]
+             
+            bs, seq_len, _, _ = actions.shape
+            if self.args.state_or_obs:
+                states = self[index * batch_size : last_index]["state"]   
+                inputs = th.cat([states, actions.view(bs, seq_len, -1)], dim=-1)
+            else:
+                obses = self[index * batch_size : last_index]["obs"]
+                ids = th.eye(self.args.n_agents).expand(bs, seq_len, -1, -1)
+                inputs = th.cat((obses, ids, actions), dim=-1)
+                global_inputs = inputs.view(bs, seq_len, -1)             
+            pred_reward = reward_model.r_hat(global_inputs).to('cpu')
+            pred_indi_reward = reward_model.local_r_hat(inputs).to('cpu')
+            self[index * batch_size : last_index]["reward_hat"] = pred_reward
+            self[index * batch_size : last_index]["indi_reward_hat"] = pred_indi_reward
 
     def __repr__(self):
         return "ReplayBuffer. {}/{} episodes. Keys:{} Groups:{}".format(self.episodes_in_buffer,
