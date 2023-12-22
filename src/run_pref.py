@@ -32,7 +32,7 @@ def run_pref(_run, _config, _log):
     _log.info("\n\n" + experiment_params + "\n")
 
     # configure tensorboard logger
-    unique_token = """GM_{}__{}__{}__{}__interact{}__reset{}__act{}_\
+    unique_token = """Pref_{}__{}__{}__{}__interact{}__reset{}__act{}_\
 __RMhs{}__ensem{}__{}__{}__bs{}__loss{}__es{}__ss{}__segment{}__cap{}__{}__{}\
 __localtype{}__{}""".format(
         args.name,
@@ -234,7 +234,7 @@ def run_sequential(args, logger):
                 # first learn reward
                 reward_model.learn_reward(buffer)
                 # relabel buffer
-                buffer.relabel_with_globalRM(reward_model)
+                buffer.relabel_with_bothRM(reward_model)
 
                 # sample after relabel
                 episode_sample = buffer.sample(args.batch_size)
@@ -267,7 +267,7 @@ def run_sequential(args, logger):
                             frac = 1
                         reward_model.change_batch(frac)
                         reward_model.learn_reward(buffer)
-                        buffer.relabel_with_globalRM(reward_model)
+                        buffer.relabel_with_bothRM(reward_model)
                         interact_count = 0
                 
                 episode_sample = buffer.sample(args.batch_size)

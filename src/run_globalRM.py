@@ -32,20 +32,16 @@ def run_globalRM(_run, _config, _log):
     _log.info("\n\n" + experiment_params + "\n")
 
     # configure tensorboard logger
-    unique_token = """GM_{}__{}__{}__{}__interact{}__act{}_\
-_{}__{}__loss{}__es{}__ss{}__segment{}__cap{}__{}__{}\
-__{}__localtype{}__lamda{}__{}""".format(
+    unique_token = """GM_{}__{}__{}__{}__interact{}__feedback{}__act{}_\
+_{}__segment{}__cap{}__{}__{}__{}__localtype{}__lamda{}__{}""".format(
         args.name,
         args.env_args["map_name"],
         args.seed,
         "pos" if args.env_args["reward_only_positive"] else "neg", 
         args.num_interact,
+        args.max_feedback,
         args.active,
         "state" if args.state_or_obs else "obs",
-        "onehot" if args.actions_onehot else "action",
-        args.loss_func,
-        args.sample_episode_size,
-        args.sample_segment_size,
         args.segment_size,
         args.segment_capacity,
         args.global_preference_type,
