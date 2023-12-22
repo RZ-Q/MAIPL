@@ -106,14 +106,15 @@ class PrefEpisodeRunner:
                     a = F.one_hot(actions, self.args.n_actions)
                 else:
                     a = actions.unsqueeze(-1)
+                
+                obs = torch.tensor(np.array(pre_transition_data['obs'])).to(self.args.device)
+                ids = torch.eye(self.args.n_agents).unsqueeze(0).to(self.args.device)
                 if self.args.state_or_obs:
                     s = torch.tensor(np.array(pre_transition_data['state'])).to(self.args.device)
-                    sa = torch.cat((s, a.view(1, -1)), dim=-1)
+                    global_sa = torch.cat((s, a.view(1, -1)), dim=-1)
                 else:
-                    s = torch.tensor(np.array(pre_transition_data['obs'])).to(self.args.device)
-                    ids = torch.eye(self.args.n_agents).unsqueeze(0).to(self.args.device)
-                    sa = torch.cat((s, ids, a), dim=-1)
-                    global_sa = sa.view(1, -1)                   
+                    global_sa = torch.cat((obs, ids, a), dim=-1).view(1, -1)   
+                sa = torch.cat((obs, ids, a), dim=-1)
                 reward_hat = reward_model.r_hat(global_sa)
                 indi_reward_hat = reward_model.local_r_hat(sa)
                 episode_return_hat += reward_hat[0][0].item()
@@ -183,6 +184,8 @@ class PrefEpisodeRunner:
         indi_returns.clear()
 
         for k, v in stats.items():
-            if k != "n_episodes":
+            if k != "n_episodes" and k != "total_feedbacks":
                 self.logger.log_stat(prefix + k + "_mean" , v/stats["n_episodes"], self.t_env)
+            elif k == "total_feedbacks":
+                self.logger.log_stat(prefix + "total_feedbacks", stats["total_feedbacks"], self.t_env)
         stats.clear()
