@@ -111,7 +111,8 @@ class GlobalRMEpisodeRunner:
                     sa = torch.cat((s, a.view(1, -1)), dim=-1)
                 else:
                     s = torch.tensor(np.array(pre_transition_data['obs'])) .to(self.args.device)
-                    sa = torch.cat((s, a), dim=-1).view(1, -1)
+                    ids = torch.eye(self.args.n_agents).unsqueeze(0)
+                    sa = torch.cat((s, ids, a), dim=-1).view(1, -1)
                 reward_hat = reward_model.r_hat(sa)
                 episode_return_hat += reward_hat[0][0].item()
                 self.batch.update({"reward_hat": [(reward_hat[0][0].item(),)]}, ts=self.t)

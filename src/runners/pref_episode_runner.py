@@ -110,14 +110,19 @@ class PrefEpisodeRunner:
                     s = torch.tensor(np.array(pre_transition_data['state'])).to(self.args.device)
                     sa = torch.cat((s, a.view(1, -1)), dim=-1)
                 else:
-                    s = torch.tensor(np.array(pre_transition_data['obs'])) .to(self.args.device)
-                    sa = torch.cat((s, a), dim=-1).view(1, -1)
-                reward_hat = reward_model.r_hat(sa)
+                    s = torch.tensor(np.array(pre_transition_data['obs'])).to(self.args.device)
+                    ids = torch.eye(self.args.n_agents).unsqueeze(0).to(self.args.device)
+                    sa = torch.cat((s, ids, a), dim=-1)
+                    global_sa = sa.view(1, -1)                   
+                reward_hat = reward_model.r_hat(global_sa)
+                indi_reward_hat = reward_model.local_r_hat(sa)
                 episode_return_hat += reward_hat[0][0].item()
                 self.batch.update({"reward_hat": [(reward_hat[0][0].item(),)]}, ts=self.t)
+                self.batch.update({"indi_reward_hat": indi_reward_hat[0].squeeze(-1)}, ts=self.t)
             else:
                 episode_return_hat += 0
                 self.batch.update({"reward_hat": [(0,)]}, ts=self.t)
+                self.batch.update({"indi_reward_hat": [0 for _ in range(self.args.n_agents)]}, ts=self.t)
 
             self.t += 1
 
@@ -145,6 +150,8 @@ class PrefEpisodeRunner:
                 cur_stats.update({k: cur_stats.get(k, 0) + env_info.get(k, 0)})
         cur_stats["n_episodes"] = 1 + cur_stats.get("n_episodes", 0)
         cur_stats["ep_length"] = self.t + cur_stats.get("ep_length", 0)
+        if reward_model is not None:
+            cur_stats["total_feedbacks"] = reward_model.get_feedbacks()
 
         if not test_mode:
             self.t_env += self.t
@@ -170,9 +177,9 @@ class PrefEpisodeRunner:
         self.logger.log_stat(prefix + "return_hat_mean", np.mean(returns_hat), self.t_env)
         self.logger.log_stat(prefix + "return_hat_std", np.std(returns_hat), self.t_env)
         returns_hat.clear()
-        for i in range(self.args.n_agents):
-            self.logger.log_stat(prefix + "return_mean" + str(i), np.mean(np.array(indi_returns)[:, i]), self.t_env)
-            self.logger.log_stat(prefix + "return_std" + str(i), np.std(np.array(indi_returns)[:, i]), self.t_env)
+        # for i in range(self.args.n_agents):
+        #     self.logger.log_stat(prefix + "return_mean" + str(i), np.mean(np.array(indi_returns)[:, i]), self.t_env)
+        #     self.logger.log_stat(prefix + "return_std" + str(i), np.std(np.array(indi_returns)[:, i]), self.t_env)
         indi_returns.clear()
 
         for k, v in stats.items():
