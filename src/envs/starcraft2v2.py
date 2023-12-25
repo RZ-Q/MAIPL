@@ -2319,7 +2319,7 @@ class StarCraft2Env(MultiAgentEnv):
         # TODO hardcoding init location. change this later for new maps
         if not self.random_start:
             if ally:
-                init_pos = [sc_common.Point2D(x=8, y=16)] * self.n_agents
+                init_pos = [sc_common.Point2D(x=23, y=16)] * self.n_agents
             else:
                 init_pos = [sc_common.Point2D(x=24, y=16)] * self.n_enemies
         else:
