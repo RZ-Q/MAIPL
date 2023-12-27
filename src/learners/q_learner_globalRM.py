@@ -42,7 +42,7 @@ class QLearnerGlobalRM:
         avail_actions shape [bs, ep_len, num_agent, num_action]
         terminated shape [bs, ep_len, 1]
         """
-        rewards = batch["reward"][:, :-1]
+        rewards = batch["reward_hat"][:, :-1]
         actions = batch["actions"][:, :-1]
         terminated = batch["terminated"][:, :-1].float()
         mask = batch["filled"][:, :-1].float()
