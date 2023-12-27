@@ -82,19 +82,19 @@ class EpisodeRunner:
 
             reward, terminated, env_info = self.env.step(actions[0])
             episode_return += reward
-            episode_indi_return += np.array(env_info["indi_reward"])
+            # episode_indi_return += np.array(env_info["indi_reward"])
             
 
             post_transition_data = {
                 "actions": actions,
                 "reward": [(reward,)],
                 "terminated": [(terminated != env_info.get("episode_limit", False),)],
-                "indi_terminated": [self.env.get_indi_terminated()],
-                "indi_reward": list(env_info["indi_reward"]),
+                # "indi_terminated": [self.env.get_indi_terminated()],
+                # "indi_reward": list(env_info["indi_reward"]),
             }
 
             # delete indi_reward in env_info, thus it will not in cur_stats
-            del env_info["indi_reward"]
+            # del env_info["indi_reward"]
 
             self.batch.update(post_transition_data, ts=self.t)
 
@@ -128,7 +128,7 @@ class EpisodeRunner:
             self.t_env += self.t
 
         cur_returns.append(episode_return)
-        cur_indi_returns.append(episode_indi_return)
+        # cur_indi_returns.append(episode_indi_return)
 
         if test_mode and (len(self.test_returns) == self.args.test_nepisode):
             self._log(cur_returns, cur_indi_returns, cur_stats, log_prefix)
@@ -144,10 +144,10 @@ class EpisodeRunner:
         self.logger.log_stat(prefix + "return_mean", np.mean(returns), self.t_env)
         self.logger.log_stat(prefix + "return_std", np.std(returns), self.t_env)
         returns.clear()
-        for i in range(self.args.n_agents):
-            self.logger.log_stat(prefix + "return_mean" + str(i), np.mean(np.array(indi_returns)[:, i]), self.t_env)
-            self.logger.log_stat(prefix + "return_std" + str(i), np.std(np.array(indi_returns)[:, i]), self.t_env)
-        indi_returns.clear()
+        # for i in range(self.args.n_agents):
+        #     self.logger.log_stat(prefix + "return_mean" + str(i), np.mean(np.array(indi_returns)[:, i]), self.t_env)
+        #     self.logger.log_stat(prefix + "return_std" + str(i), np.std(np.array(indi_returns)[:, i]), self.t_env)
+        # indi_returns.clear()
 
         for k, v in stats.items():
             if k != "n_episodes":
