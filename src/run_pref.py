@@ -32,20 +32,22 @@ def run_pref(_run, _config, _log):
     _log.info("\n\n" + experiment_params + "\n")
 
     # configure tensorboard logger
-    unique_token = """Pref_{}__{}__{}__{}__interact{}\
-__{}__es{}__ss{}__segment{}__cap{}__globaltype{}__{}__localtype{}__{}__{}""".format(
+    unique_token = """Pref_{}__{}__{}__{}__interact{}__unsup{}__feedback{}\
+__es{}__ss{}__segment{}__cap{}__globaltype{}__{}__{}__localtype{}__{}__{}""".format(
         args.name,
         args.env_args["map_name"],
         args.seed,
         "pos" if args.env_args["reward_only_positive"] else "neg", 
         args.num_interact,
-        "state" if args.state_or_obs else "obs",
+        args.num_unsup_timesteps,
+        args.max_feedback,
         args.sample_episode_size,
         args.sample_segment_size,
         args.segment_size,
         args.segment_capacity,
         args.global_preference_type,
         "schedule" if args.reward_schedule else "unlimit",
+        "uselocal" if args.use_local_reward else "nolocal",
         args.local_preference_type,
         args.lamda,
         datetime.datetime.now().strftime("%Y-%m-%d_%H-%M-%S"),
@@ -142,7 +144,7 @@ def run_sequential(args, logger):
     learner = le_REGISTRY[args.learner](mac, buffer.scheme, logger, args)
 
     # Reward model
-    reward_model = RewardModel(args, mac)
+    reward_model = RewardModel(args, mac, logger)
 
     if args.use_cuda:
         learner.cuda()

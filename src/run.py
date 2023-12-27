@@ -44,11 +44,10 @@ def run(_run, _config, _log):
             datetime.datetime.now().strftime("%Y-%m-%d_%H-%M-%S"),
         )
     else:
-        unique_token = "{}__{}__{}__{}__{}".format(
+        unique_token = "{}__{}__{}__{}".format(
             args.name,
             args.env_args["map_name"],
             args.seed,
-            "pos" if args.env_args["reward_only_positive"] else "neg", 
             datetime.datetime.now().strftime("%Y-%m-%d_%H-%M-%S"),
         )
     args.unique_token = unique_token
