@@ -1685,11 +1685,3 @@ class StarCraft2Env(MultiAgentEnv):
             else:
                 terminate.append(1)
         return terminate
-
-    def get_allyunit_health(self):
-        health = []
-        for agent_id in range(self.n_agents):
-            unit = self.get_unit_by_id(agent_id)
-            health.append(unit.health / unit.health_max)
-
-        return sum(health) / len(health)
