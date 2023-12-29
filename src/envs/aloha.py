@@ -97,6 +97,8 @@ class AlohaEnv(MultiAgentEnv):
         info['trans'] = self.transmitted
         info['left'] = self.backlogs.sum()
         info['battle_won'] = False
+        # indi_reward not used in MACO
+        info['indi_reward'] = np.array([0.0 for _ in range(self.n_agents)])
 
         # Add new packages
         self.backlogs += np.random.choice([0., 1.], p=[0.4, 0.6], size=[self.n_agents])
@@ -184,3 +186,11 @@ class AlohaEnv(MultiAgentEnv):
             "win_rate": self.battles_won / self.battles_game
         }
         return stats
+    
+    def get_indi_terminated(self):
+        # aloha has no indi terminated
+        if self._episode_steps >= self.episode_limit:
+            terminated = [1 for _ in range(self.n_agents)]
+        else:
+            terminated = [0 for _ in range(self.n_agents)]
+        return terminated

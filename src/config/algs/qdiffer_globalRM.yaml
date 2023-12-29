@@ -25,28 +25,28 @@ hypernet_embed: 64
 name: "qdiffer_globalRM"
 # seed: 147971273
 # seed: 180336608
-seed: 667792542
+# seed: 667792542
 
 # --- global RM ---
 run: "globalRM"
 # env interact
-num_seed_timesteps: 2000
-num_unsup_timesteps: 10000
+num_seed_timesteps: 10
+num_unsup_timesteps: 1000
 k: 6  # for unsup training
 num_interact: 150
 reset_critic: True
-max_feedback: 100000
-reward_schedule: False
+max_feedback: 40000
+reward_schedule: True
 # reward model
 active: "tan"  # tan sig
 reward_lr: 0.0003
-reward_hidden_size: 512
+reward_hidden_size: 256
 reward_update: 200
 ensemble_size: 3
-state_or_obs: False
+state_or_obs: True
 actions_onehot: True
 reward_train_batch_size: 128
-loss_func: "KL"  # KL
+loss_func: "cross_entropy"  # KL
 # sample config
 sample_episode_size: 100  # sample these episodes from buffer
 sample_segment_size: 128  # sample these segmnet pairs from sampled episodes
@@ -59,6 +59,7 @@ policy_dir: "results/models/qdiffer__5m_vs_6m__667792542__neg__2023-12-01_13-22-
 # --- local preference ---
 lamda: 0.01
 local_script_preference: False
+use_local_reward: False
 # pretrain
 lcoal_pretrain_timesteps: 200000  # 10000 for 3m, 200000 for 5mvs6m
-local_preference_type: "true_indi_rewards"  # policy
+local_preference_type: "true_indi_rewards"  # policy true_indi_rewards

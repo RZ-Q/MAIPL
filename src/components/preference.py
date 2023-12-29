@@ -15,6 +15,7 @@ class ScriptPreferences:
             indi_rewards = batch["indi_reward_hat"][:, :-1]
         else:
             indi_rewards = batch["indi_reward"][:, :-1]
+        # indi_rewards = batch["indi_reward"][:, :-1]
         agent_num = self.args.n_agents
         preferences = []
         for i in range(agent_num):

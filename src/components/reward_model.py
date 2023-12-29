@@ -3,6 +3,7 @@ import torch
 import torch.nn as nn
 import torch.nn.functional as F
 import copy
+from scipy.special import comb
 # from components.episode_buffer import ReplayBuffer
 # from components.preference import ScriptGlobalRewardModelLabelss
 # from episode_buffer import EpisodeBatch, ReplayBuffer
@@ -16,7 +17,7 @@ class RewardNet(nn.Module):
         self.ac2 = nn.LeakyReLU()
         self.layer3 = nn.Linear(hidden_size, hidden_size)
         self.ac3 = nn.LeakyReLU()
-        self.out_layer = nn.Linear(hidden_size, out_size)
+        self.out_layer = nn.Linear(hidden_size, out_size) 
         self.tan = nn.Tanh()
         self.sig = nn.Sigmoid()
         self.active = active
@@ -33,10 +34,11 @@ class RewardNet(nn.Module):
 
 # Global and Local reward model
 class RewardModel:
-    def __init__(self, args, mac):
+    def __init__(self, args, mac, logger):
         # args and mac
         self.args = args
         self.mac = copy.deepcopy(mac)
+        self.logger = logger
 
         # log
         self.total_feedback = 0.0
@@ -89,6 +91,7 @@ class RewardModel:
             "obs_segment1": [],
             "obs_segment2": [],
             "label": [],
+            "local_label": [],
             "local_label1": [],
             "local_label2": [],
             "mask1": [],
@@ -209,7 +212,8 @@ class RewardModel:
 
     def get_labels(self, query1, query2):
         global_labels = self.get_global_labels(query1, query2)
-        local_labels = self.get_local_labels(query1, query2)
+        local_labels = self.get_local_labels_between_seg(query1, query2)
+        # local_labels = self.get_local_labels(query1, query2)
         # local_labels = self.get_local_labels_k_wise(query1, query2)
         return global_labels, local_labels
     
@@ -230,7 +234,7 @@ class RewardModel:
                     mac_out2.append(agent_outs2)
             
             mac_out1 = torch.stack(mac_out1, dim=1)  # Concat over time
-            mac_out2 = torch.stack(mac_out2, dim=1)
+            mac_out2 = torch.stack(mac_out2, dim=1)  # (bs, segment_len, n_agents, n_actions)
             avail_actions1 = torch.cat(query1["avail_actions"], dim=0)
             avail_actions2 = torch.cat(query2["avail_actions"], dim=0)
             actions1 = torch.cat(query1["actions"], dim=0).to(self.args.device)
@@ -252,18 +256,30 @@ class RewardModel:
             return torch.stack((1-label, label),dim=-1)
 
     def get_local_labels(self, query1, query2):
+        agent_num = self.args.n_agents
         if self.local_preference_type == "true_indi_rewards":
-            agent_num = self.args.n_agents
-            labels1, labels2 = [], []
             r_1 = torch.cat(query1["indi_reward"], dim=0).sum(1)
             r_2 = torch.cat(query2["indi_reward"], dim=0).sum(1)
+            delta_r1 = []
+            delta_r2 = []
             for i in range(agent_num):
                 for j in range(i + 1, agent_num):
-                    label1 = 0.5 * (torch.abs(r_1[:, i] - r_1[:, j]) <= self.args.lcoal_label_equal_thres)
-                    label1 += 1.0 * ((torch.abs(r_1[:, i] - r_1[:, j]) > self.args.lcoal_label_equal_thres) & (r_1[:, i] < r_1[:, j]))
+                    delta_r1.append((r_1[:, i] - r_1[:, j]).squeeze(-1))
+                    delta_r2.append((r_2[:, i] - r_2[:, j]).squeeze(-1))
+            delta_r1 = torch.cat(delta_r1, dim=-1)
+            delta_r2 = torch.cat(delta_r2, dim=-1)   
+            thres1 = torch.sort(delta_r1.abs()).values[int(self.args.lcoal_label_equal_thres * delta_r1.shape[0])]
+            thres2 = torch.sort(delta_r2.abs()).values[int(self.args.lcoal_label_equal_thres * delta_r2.shape[0])]
+            # thres1 = -1
+            # thres2 = -1
+            labels1, labels2 = [], []
+            for i in range(agent_num):
+                for j in range(i + 1, agent_num):
+                    label1 = 0.5 * (torch.abs(r_1[:, i] - r_1[:, j]) <= thres1)
+                    label1 += 1.0 * ((torch.abs(r_1[:, i] - r_1[:, j]) > thres1) & (r_1[:, i] < r_1[:, j]))
                     labels1.append(torch.stack((1-label1, label1), dim=-1))
-                    label2 = 0.5 * (torch.abs(r_2[:, i] - r_2[:, j]) <= self.args.lcoal_label_equal_thres)
-                    label2 += 1.0 * ((torch.abs(r_2[:, i] - r_2[:, j]) > self.args.lcoal_label_equal_thres) & (r_2[:, i] < r_2[:, j]))
+                    label2 = 0.5 * (torch.abs(r_2[:, i] - r_2[:, j]) <= thres2)
+                    label2 += 1.0 * ((torch.abs(r_2[:, i] - r_2[:, j]) > thres2) & (r_2[:, i] < r_2[:, j]))
                     labels2.append(torch.stack((1-label2, label2), dim=-1))
             return torch.stack(labels1, dim=1), torch.stack(labels2, dim=1)
         elif self.local_preference_type == "policy":
@@ -293,10 +309,11 @@ class RewardModel:
             chosen_p1 = torch.gather(mac_out1, dim=3, index=actions1).squeeze(3)
             chosen_p2 = torch.gather(mac_out2, dim=3, index=actions2).squeeze(3)
             # multiple a small value for 0.0
-            cum_p1 = torch.prod(torch.prod(chosen_p1 * mask1 + (1 - mask1), dim=1) * 1e2, dim=-1)
-            cum_p2 = torch.prod(torch.prod(chosen_p2 * mask2 + (1 - mask2), dim=1) * 1e2, dim=-1)
+            cum_p1 = torch.prod(chosen_p1 * mask1 + (1 - mask1), dim=1) * 1e2
+            cum_p2 = torch.prod(chosen_p2 * mask2 + (1 - mask2), dim=1) * 1e2
 
             labels1, labels2 = [], []
+            # TODO: add threshould
             for i in range(agent_num):
                 for j in range(i + 1, agent_num):
                     label1 = 1.0 * (cum_p1[:, i] < cum_p1[:, j])
@@ -304,6 +321,44 @@ class RewardModel:
                     label2 = 1.0 * (cum_p2[:, i] < cum_p2[:, j])
                     labels2.append(torch.stack((1-label2, label2), dim=-1))
             return torch.stack(labels1, dim=1), torch.stack(labels2, dim=1)
+
+    def get_local_labels_between_seg(self, query1, query2):
+        if self.local_preference_type == "true_indi_rewards":
+            r_1 = torch.cat(query1["indi_reward"], dim=0).sum(1)
+            r_2 = torch.cat(query2["indi_reward"], dim=0).sum(1)
+            labels = 1.0 * (r_1 < r_2)
+            return torch.stack((1-labels, labels),dim=-1)
+        elif self.local_preference_type == "policy":
+            mac_out1, mac_out2 = [], []
+            with torch.no_grad(): # reference   
+                self.mac.init_hidden(len(query1["state"]))    
+                for t in range(query1["state"][0].shape[1]): 
+                    agent_outs1 = self.mac.forward_query(query1, t=t)
+                    agent_outs2 = self.mac.forward_query(query2, t=t)
+                    mac_out1.append(agent_outs1)
+                    mac_out2.append(agent_outs2)
+            
+            mac_out1 = torch.stack(mac_out1, dim=1)  # Concat over time
+            mac_out2 = torch.stack(mac_out2, dim=1)
+            avail_actions1 = torch.cat(query1["avail_actions"], dim=0)
+            avail_actions2 = torch.cat(query2["avail_actions"], dim=0)
+            actions1 = torch.cat(query1["actions"], dim=0).to(self.args.device)
+            actions2 = torch.cat(query2["actions"], dim=0).to(self.args.device)
+            mask1 = torch.cat(query1["mask"], dim=0).to(self.args.device)
+            mask2 = torch.cat(query2["mask"], dim=0).to(self.args.device)
+            
+            mac_out1[avail_actions1 == 0] = -1e10
+            mac_out2[avail_actions2 == 0] = -1e10
+            mac_out1 = torch.softmax(mac_out1, dim=-1)
+            mac_out2 = torch.softmax(mac_out2, dim=-1)
+
+            chosen_p1 = torch.gather(mac_out1, dim=3, index=actions1).squeeze(3)
+            chosen_p2 = torch.gather(mac_out2, dim=3, index=actions2).squeeze(3)
+            # multiple a small value for 0.0
+            cum_p1 = torch.prod(chosen_p1 * mask1 + (1 - mask1), dim=1) * 1e2
+            cum_p2 = torch.prod(chosen_p2 * mask2 + (1 - mask2), dim=1) * 1e2
+            labels = 1.0 * (cum_p1 < cum_p2)
+            return torch.stack((1-labels, labels),dim=-1)
 
     def get_local_labels_k_wise(self, query1, query2):
         if self.local_preference_type == "true_indi_rewards":
@@ -383,8 +438,9 @@ class RewardModel:
             self.buffer["obs_segment1"][self.buffer_index : self.segment_capacity] = obs_segment1
             self.buffer["obs_segment2"][self.buffer_index : self.segment_capacity] = obs_segment2
             self.buffer["label"][self.buffer_index : self.segment_capacity] = labels[:max_index]
-            self.buffer["local_label1"][self.buffer_index : self.segment_capacity] = local_labels[0][:max_index]
-            self.buffer["local_label2"][self.buffer_index : self.segment_capacity] = local_labels[1][:max_index]
+            # self.buffer["local_label1"][self.buffer_index : self.segment_capacity] = local_labels[0][:max_index]
+            # self.buffer["local_label2"][self.buffer_index : self.segment_capacity] = local_labels[1][:max_index]
+            self.buffer["local_label"][self.buffer_index : self.segment_capacity] = local_labels[:max_index]
             self.buffer["mask1"][self.buffer_index : self.segment_capacity] = query1["mask"][:max_index]
             self.buffer["mask2"][self.buffer_index : self.segment_capacity] = query2["mask"][:max_index]
 
@@ -415,8 +471,9 @@ class RewardModel:
                 self.buffer["obs_segment1"][:remain] = obs_segment1
                 self.buffer["obs_segment2"][:remain] = obs_segment2
                 self.buffer["label"][:remain] = labels[max_index:]
-                self.buffer["local_label1"][:remain] = local_labels[0][max_index:]
-                self.buffer["local_label2"][:remain] = local_labels[1][max_index:]
+                # self.buffer["local_label1"][:remain] = local_labels[0][max_index:]
+                # self.buffer["local_label2"][:remain] = local_labels[1][max_index:]
+                self.buffer["local_label"][:remain] = local_labels[max_index:]
                 self.buffer["mask1"][:remain] = query1["mask"][max_index:]
                 self.buffer["mask2"][:remain] = query2["mask"][max_index:]
             self.buffer_index = remain
@@ -446,8 +503,9 @@ class RewardModel:
             self.buffer["obs_segment1"][self.buffer_index : next_index] = obs_segment1
             self.buffer["obs_segment2"][self.buffer_index : next_index] = obs_segment2
             self.buffer["label"][self.buffer_index : next_index] = labels[:]
-            self.buffer["local_label1"][self.buffer_index : next_index] = local_labels[0][:]
-            self.buffer["local_label2"][self.buffer_index : next_index] = local_labels[1][:]
+            # self.buffer["local_label1"][self.buffer_index : next_index] = local_labels[0][:]
+            # self.buffer["local_label2"][self.buffer_index : next_index] = local_labels[1][:]
+            self.buffer["local_label"][self.buffer_index : next_index] = local_labels[:]
             self.buffer["mask1"][self.buffer_index : next_index] = query1["mask"][:]
             self.buffer["mask2"][self.buffer_index : next_index] = query2["mask"][:]
             
@@ -602,8 +660,8 @@ class RewardModel:
                 labels2 = labels2.to(self.args.device)
                 label_mask1 = 1.0 * (labels1[:, :, 0] != 0.5).unsqueeze(-1)
                 label_mask2 = 1.0 * (labels2[:, :, 0] != 0.5).unsqueeze(-1)
-                # labels1 = labels1 * label_mask1
-                # labels2 = labels2 * label_mask2
+                labels1 = labels1 * label_mask1
+                labels2 = labels2 * label_mask2
                 label_mask = torch.cat([label_mask1, label_mask2], dim=0)
                 
                 # compute loss
@@ -629,19 +687,84 @@ class RewardModel:
                 r_hat = torch.stack(r_hat, dim=1)
                 # predicted = 0.5 * (r_hat[:, :, 0] == r_hat[:, :, 1])
                 predicted = 1.0 * (r_hat[:, :, 0] < r_hat[:, :, 1]) 
-                # predicted = torch.stack((1-predicted, predicted), dim=-1) * label_mask
-                # labels = torch.cat([labels1, labels2], dim=0) * label_mask
-                # correct = (predicted== labels)[:, :, 0].sum().item() + label_mask.sum().item() - total
-                # ensemble_acc[member] += correct/(label_mask.sum().item())
-                predicted = torch.stack((1-predicted, predicted), dim=-1)
-                labels = torch.cat([labels1, labels2], dim=0)
-                correct = (predicted== labels)[:, :, 0].sum().item()
-                ensemble_acc[member] += correct/total
+                predicted = torch.stack((1-predicted, predicted), dim=-1) * label_mask
+                labels = torch.cat([labels1, labels2], dim=0) * label_mask
+                correct = (predicted== labels)[:, :, 0].sum().item() + label_mask.sum().item() - total
+                ensemble_acc[member] += correct/(label_mask.sum().item())
+                # predicted = torch.stack((1-predicted, predicted), dim=-1)
+                # labels = torch.cat([labels1, labels2], dim=0)
+                # correct = (predicted== labels)[:, :, 0].sum().item()
+                # ensemble_acc[member] += correct/total
 
             loss.backward()
             self.local_optimizer.step()
 
         return ensemble_acc / num_epochs
+
+    def train_local_reward_between_seg(self):
+        ensemble_losses = [[] for _ in range(self.ensemble_size)]
+        ensemble_acc = np.array([0.0 for _ in range(self.ensemble_size)])
+
+        max_len = self.segment_capacity if self.buffer_full else self.buffer_index
+        total_batch_index = []
+        for _ in range(self.ensemble_size):
+            total_batch_index.append(np.random.permutation(max_len))
+
+        num_epochs = int(np.ceil(max_len / self.train_batch_size))
+
+        total = 0
+        for epoch in range(num_epochs):
+            self.local_optimizer.zero_grad()
+            loss = 0.0
+
+            last_index = (epoch + 1) * self.train_batch_size
+            if last_index > max_len:
+                last_index = max_len
+            for member in range(self.ensemble_size):
+                # get random batch
+                idxs = total_batch_index[member][
+                    epoch * self.train_batch_size : last_index
+                ]
+                traj_t_1, traj_t_2, labels = [], [], []
+                mask1, mask2 = [], []
+                for idx in idxs:
+                    traj_t_1.append(self.buffer["obs_segment1"][idx])
+                    traj_t_2.append(self.buffer["obs_segment2"][idx])
+                    labels.append(self.buffer["local_label"][idx])
+                    mask1.append(self.buffer["mask1"][idx])
+                    mask2.append(self.buffer["mask2"][idx])
+                # cat inputs (bs, seg_size, dim), (bs,2)
+                traj_t_1 = torch.stack(traj_t_1, dim=0)
+                traj_t_2 = torch.stack(traj_t_2, dim=0)
+                labels = torch.stack(labels, dim=0)
+                mask1 = torch.cat(mask1, dim=0).to(self.args.device)
+                mask2 = torch.cat(mask2, dim=0).to(self.args.device)
+
+                if member == 0:
+                    total += labels.size(0) * labels.size(1)
+
+                # r_hat shape (bs, num_agent, 1), labels shape (bs, C_n^2, 2)
+                r_hat1 = (self.local_r_hat_member(traj_t_1, member=member).squeeze(-1) * mask1).sum(1).unsqueeze(-1)
+                r_hat2 = (self.local_r_hat_member(traj_t_2, member=member).squeeze(-1) * mask2).sum(1).unsqueeze(-1)
+                r_hat = torch.cat([r_hat1, r_hat2], axis=-1)
+                labels = labels.to(self.args.device)
+                
+                # compute loss
+                curr_loss = self.loss_func(r_hat, labels)
+                loss += curr_loss
+                ensemble_losses[member].append(curr_loss.item())
+
+                # compute acc
+                _, predicted = torch.max(r_hat.data, -1)
+                _, labels = torch.max(labels, -1)
+                correct = (predicted == labels).sum().item()
+                ensemble_acc[member] += correct
+
+            loss.backward()
+            self.local_optimizer.step()
+        ensemble_acc = ensemble_acc / total
+
+        return ensemble_acc
 
     def train_local_reward_k_wise(self):
         ensemble_losses = [[] for _ in range(self.ensemble_size)]
@@ -736,20 +859,22 @@ class RewardModel:
                     total_acc = np.mean(train_acc)
                     if total_acc > 0.97:
                         break
-
-            print("Global Reward function is updated!! ACC: " + str(total_acc))
+            self.logger.console_logger.info(
+                "Global Reward function is updated!! ACC:{}".format(str(total_acc)))
         
         if self.args.use_local_reward:
             train_acc = 0
             if self.labeled_feedback > 0:
                 # update reward
-                for _ in range(self.reward_update):
-                    train_acc = self.train_local_reward()
+                for _ in range(self.args.reward_update):
+                    train_acc = self.train_local_reward_between_seg()
                     total_acc = np.mean(train_acc)
                     if total_acc > self.args.local_acc:
+                        print("update:", _)
                         break
+            self.logger.console_logger.info(
+                "Local Reward function is updated!! ACC:{}".format(str(total_acc)))
 
-            print("Local Reward function is updated!! ACC: " + str(total_acc))
 
 
 # not use anymore
@@ -1140,3 +1265,4 @@ class GlobalRewardModel:
                     break
 
         print("Global Reward function is updated!! ACC: " + str(total_acc))
+ 
