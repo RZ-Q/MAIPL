@@ -6,14 +6,11 @@ import sys
 import os
 from .aloha import AlohaEnv
 
-from .overcooked_env import OvercookEnv
-
 def env_fn(env, **kwargs) -> MultiAgentEnv:
     return env(**kwargs)
 
 REGISTRY = {}
 REGISTRY["sc2"] = partial(env_fn, env=StarCraft2Env)
-REGISTRY["overcooked"] = partial(env_fn, env=OvercookEnv)
 REGISTRY["aloha"] = partial(env_fn, env=AlohaEnv)
 
 if sys.platform == "linux":
