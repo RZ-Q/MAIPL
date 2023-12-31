@@ -116,10 +116,13 @@ class PrefEpisodeRunner:
                     global_sa = torch.cat((obs, ids, a), dim=-1).view(1, -1)   
                 sa = torch.cat((obs, ids, a), dim=-1)
                 reward_hat = reward_model.r_hat(global_sa)
-                indi_reward_hat = reward_model.local_r_hat(sa)
+                if self.args.use_local_reward:
+                    indi_reward_hat = reward_model.local_r_hat(sa)
+                    self.batch.update({"indi_reward_hat": indi_reward_hat[0].squeeze(-1)}, ts=self.t)
+                else:
+                    self.batch.update({"indi_reward_hat": [0 for _ in range(self.args.n_agents)]}, ts=self.t)
                 episode_return_hat += reward_hat[0][0].item()
                 self.batch.update({"reward_hat": [(reward_hat[0][0].item(),)]}, ts=self.t)
-                self.batch.update({"indi_reward_hat": indi_reward_hat[0].squeeze(-1)}, ts=self.t)
             else:
                 episode_return_hat += 0
                 self.batch.update({"reward_hat": [(0,)]}, ts=self.t)

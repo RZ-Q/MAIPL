@@ -103,7 +103,7 @@ class RewardModel:
         # label stuff
         self.global_preference_type = self.args.global_preference_type
         self.local_preference_type = self.args.local_preference_type
-        if (self.global_preference_type or self.local_preference_type) == "policy":
+        if self.global_preference_type == "policy" or self.local_preference_type== "policy":
             self.mac.load_models(self.args.policy_dir)
             if self.args.use_cuda:
                 self.mac.cuda()
@@ -212,7 +212,10 @@ class RewardModel:
 
     def get_labels(self, query1, query2):
         global_labels = self.get_global_labels(query1, query2)
-        local_labels = self.get_local_labels_between_seg(query1, query2)
+        if self.args.use_local_reward:
+            local_labels = self.get_local_labels_between_seg(query1, query2)
+        else:
+            local_labels = torch.zeros((global_labels.shape[0], self.n_agents, 2))
         # local_labels = self.get_local_labels(query1, query2)
         # local_labels = self.get_local_labels_k_wise(query1, query2)
         return global_labels, local_labels
