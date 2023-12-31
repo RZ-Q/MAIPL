@@ -3,7 +3,7 @@ import torch
 class ScriptPreferences:
     def __init__(self, args, prefer_mac) -> None:
         self.args = args
-        self.preference_type = args.local_preference_type
+        self.preference_type = args.local_preference_type_training
         if self.preference_type == "policy":
             self.prefer_mac = prefer_mac
             self.prefer_mac.load_models(self.args.policy_dir)
@@ -15,7 +15,6 @@ class ScriptPreferences:
             indi_rewards = batch["indi_reward_hat"][:, :-1]
         else:
             indi_rewards = batch["indi_reward"][:, :-1]
-        # indi_rewards = batch["indi_reward"][:, :-1]
         agent_num = self.args.n_agents
         preferences = []
         for i in range(agent_num):
@@ -56,7 +55,7 @@ class ScriptPreferences:
         return torch.stack(preferences, dim=1)
 
     def produce_labels(self, batch):
-        if self.preference_type == "true_indi_rewards":
+        if self.preference_type == "indi_rewards":
             return self.true_indi_rewards_preference(batch)
         elif self.preference_type == "policy":
             return self.policy_preference(batch)
