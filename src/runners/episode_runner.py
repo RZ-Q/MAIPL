@@ -94,7 +94,7 @@ class EpisodeRunner:
             }
 
             # delete indi_reward in env_info, thus it will not in cur_stats
-            # del env_info["indi_reward"]
+            del env_info["indi_reward"]
 
             self.batch.update(post_transition_data, ts=self.t)
 
