@@ -125,11 +125,11 @@
 #     with use_tensorboard=True env_args.reward_only_positive=True \
 #     seed=1 use_local_reward=True lamda=0.001 \
 #     >results/logs/pref_qmix_local001_betw_5mvs6m_1.log 2>&1 &
-CUDA_VISIBLE_DEVICES=0 nohup python3 src/main.py \
-    --config=pref_qmix --env-config=sc2 --map_name=5m_vs_6m \
-    with use_tensorboard=True env_args.reward_only_positive=True \
-    seed=1 use_local_reward=True lamda=0.003 \
-    >results/logs/pref_qmix_local003_betw_5mvs6m_1.log 2>&1 &
+# CUDA_VISIBLE_DEVICES=0 nohup python3 src/main.py \
+#     --config=pref_qmix --env-config=sc2 --map_name=5m_vs_6m \
+#     with use_tensorboard=True env_args.reward_only_positive=True \
+#     seed=1 use_local_reward=True lamda=0.003 \
+#     >results/logs/pref_qmix_local003_betw_5mvs6m_1.log 2>&1 &
 # CUDA_VISIBLE_DEVICES=1 nohup python3 src/main.py \
 #     --config=pref_qmix --env-config=sc2 --map_name=5m_vs_6m \
 #     with use_tensorboard=True env_args.reward_only_positive=True \
