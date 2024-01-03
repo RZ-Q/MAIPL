@@ -248,11 +248,13 @@ def run_sequential(args, logger):
                 # learner train
                 learner.train(episode_sample, runner.t_env, episode)
                 # reset interact_count
-                interact_count = 0
+                # interact_count = 0
+                interact_count = runner.t_env
             
             elif runner.t_env >= args.num_unsup_timesteps and (not reset_flag):
                 if reward_model.total_feedback < args.max_feedback:
-                    if interact_count == args.num_interact:
+                    # if interact_count == args.num_interact:
+                    if runner.t_env - interact_count >= args.num_interact:
                         # update reward model ma_size schedule
                         if args.reward_schedule:
                             frac = (args.t_max - runner.t_env) / args.t_max
@@ -263,7 +265,8 @@ def run_sequential(args, logger):
                         reward_model.change_batch(frac)
                         reward_model.learn_reward(buffer)
                         buffer.relabel_with_bothRM(reward_model)
-                        interact_count = 0
+                        # interact_count = 0
+                        interact_count = runner.t_env
                 
                 episode_sample = buffer.sample(args.batch_size)
                 # Truncate batch to only filled timesteps
@@ -275,7 +278,7 @@ def run_sequential(args, logger):
 
                 learner.train(episode_sample, runner.t_env, episode)
         
-        interact_count += 1
+        # interact_count += 1
 
         # Execute test runs once in a while
         n_test_runs = max(1, args.test_nepisode // runner.batch_size)

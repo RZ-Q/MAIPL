@@ -30,9 +30,9 @@ use_global_reward: True
 use_local_reward: False  # cannot both set to false
 # env interact
 num_seed_timesteps: 10
-num_unsup_timesteps: 1000
+num_unsup_timesteps: 10000
 k: 6  # for unsup training
-num_interact: 150
+num_interact: 5000
 reset_critic: True
 max_feedback: 40000
 reward_schedule: True
