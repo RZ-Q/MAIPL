@@ -33,7 +33,7 @@ def run_pref(_run, _config, _log):
 
     # configure tensorboard logger
     unique_token = """Pref_{}__{}__{}__{}__interact{}__unsup{}__feedback{}\
-__es{}__ss{}__segment{}__cap{}__globaltype{}__{}__{}__localtype{}__{}__{}""".format(
+__es{}__ss{}__segment{}__cap{}__globaltype{}__{}__{}__localtype{}__{}__{}__{}""".format(
         args.name,
         args.env_args["map_name"],
         args.seed,
@@ -50,6 +50,7 @@ __es{}__ss{}__segment{}__cap{}__globaltype{}__{}__{}__localtype{}__{}__{}""".for
         "uselocal" if args.use_local_reward else "nolocal",
         args.local_preference_type,
         args.lamda,
+        args.lcoal_pretrain_timesteps,
         datetime.datetime.now().strftime("%Y-%m-%d_%H-%M-%S"),
     )
     args.unique_token = unique_token
