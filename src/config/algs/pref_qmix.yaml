@@ -26,13 +26,13 @@ name: "pref_qmix"
 
 # --- global and local RM ---
 run: "pref"
-use_global_reward: False
+use_global_reward: True
 use_local_reward: True  # cannot both set to false
 # env interact
 num_seed_timesteps: 10
-num_unsup_timesteps: 100
+num_unsup_timesteps: 10000
 k: 6  # for unsup training
-num_interact: 150
+num_interact: 3000
 reset_critic: True
 max_feedback: 40000
 reward_schedule: True
@@ -53,9 +53,9 @@ sample_segment_size: 128  # sample these segmnet pairs from sampled episodes
 segment_size: 10  # should not be larger than max_seq_len in episode_batch
 segment_capacity: 50000  # save these segment pairs
 # preference type
-global_preference_type: "policy"  # policy true_rewards
-policy_dir: "results/models/qmix__aloha__3__2023-12-28_22-59-10/2000020"
-local_preference_type: "policy"  # policy true_indi_rewards
+global_preference_type: "true_rewards"  # policy true_rewards
+policy_dir: "results/models/qmix__MMM2__5__neg__2024-01-01_21-42-44/2000476"
+local_preference_type: "true_indi_rewards"  # policy true_indi_rewards
 local_preference_type_training: "indi_rewards"  # policy indi_rewards
 # local pretrain
 lamda: 0.01
