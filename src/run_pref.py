@@ -32,12 +32,12 @@ def run_pref(_run, _config, _log):
     _log.info("\n\n" + experiment_params + "\n")
 
     # configure tensorboard logger
-    unique_token = """Pref_{}__{}__{}__{}__interact{}__unsup{}__feedback{}\
-__es{}__ss{}__segment{}__cap{}__globaltype{}__{}__{}__localtype{}__{}__{}__{}""".format(
+    unique_token = """Pref_{}__{}__{}__interact{}__unsup{}__feedback{}\
+__es{}__ss{}__segment{}__cap{}__globaltype{}__{}__{}__localtype{}_{}__{}__{}__{}_{}""".format
+    (
         args.name,
         args.env_args["map_name"],
         args.seed,
-        "pos" if args.env_args["reward_only_positive"] else "neg", 
         args.num_interact,
         args.num_unsup_timesteps,
         args.max_feedback,
@@ -49,6 +49,8 @@ __es{}__ss{}__segment{}__cap{}__globaltype{}__{}__{}__localtype{}__{}__{}__{}"""
         "schedule" if args.reward_schedule else "unlimit",
         "uselocal" if args.use_local_reward else "nolocal",
         args.local_preference_type,
+        "direct" if args.direct_local_preference else "nodi",
+        args.local_preference_type_training,
         args.lamda,
         args.lcoal_pretrain_timesteps,
         datetime.datetime.now().strftime("%Y-%m-%d_%H-%M-%S"),

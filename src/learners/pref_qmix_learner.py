@@ -161,13 +161,19 @@ class Pref_QMIX_learner:
         preference_labels = self.script_preferences.produce_labels(batch)
         preference_loss = self.cal_preference_loss(q_rewards, q_mask, preference_labels, self.args.n_agents)
 
-        if self.args.use_local_reward:
+        if self.args.direct_local_preference:
             if t_env > self.args.lcoal_pretrain_timesteps:
                 q_total_loss = q_loss / q_loss.abs().detach() + self.args.lamda * preference_loss / preference_loss.abs().detach()
             else:
                 q_total_loss = q_loss / q_loss.abs().detach()
         else:
-            q_total_loss = q_loss
+            if self.args.use_local_reward:
+                if t_env > self.args.lcoal_pretrain_timesteps:
+                    q_total_loss = q_loss / q_loss.abs().detach() + self.args.lamda * preference_loss / preference_loss.abs().detach()
+                else:
+                    q_total_loss = q_loss / q_loss.abs().detach()
+            else:
+                q_total_loss = q_loss / q_loss.abs().detach()
 
         # Optimize
         self.q_optimizer.zero_grad()

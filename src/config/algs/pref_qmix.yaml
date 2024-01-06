@@ -28,6 +28,7 @@ name: "pref_qmix"
 run: "pref"
 use_global_reward: True
 use_local_reward: True  # cannot both set to false
+direct_local_preference: False
 # env interact
 num_seed_timesteps: 10
 num_unsup_timesteps: 10000
@@ -54,10 +55,10 @@ segment_size: 10  # should not be larger than max_seq_len in episode_batch
 segment_capacity: 50000  # save these segment pairs
 # preference type
 global_preference_type: "true_rewards"  # policy true_rewards
-policy_dir: "results/models/qmix__MMM2__5__neg__2024-01-01_21-42-44/2000476"
+policy_dir: "results/models/qmix__3s_vs_5z__1__neg__2024-01-01_00-10-22/2000620"
 local_preference_type: "true_indi_rewards"  # policy true_indi_rewards
 local_preference_type_training: "indi_rewards"  # policy indi_rewards
 # local pretrain
-lamda: 0.01
+lamda: 0.005
 lcoal_pretrain_timesteps: 200000  # 10000 for 3m, 200000 for 5mvs6m
 lcoal_label_equal_thres: 0.5
