@@ -271,7 +271,8 @@ class QLearnerGlobalRM:
                 self.target_mixer.cuda()
 
             self.mixer_params = list(self.mixer.parameters())
-            self.mixer_optimizer = RMSprop(params=self.mixer_params, lr=self.args.lr)
+            self.mixer_optimizer = RMSprop(params=self.mixer_params, lr=self.args.lr, \
+                                           alpha=self.args.optim_alpha, eps=self.args.optim_eps)
 
     def _update_targets(self):
         self.target_mac.load_state(self.mac)

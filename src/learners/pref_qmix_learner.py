@@ -173,7 +173,7 @@ class Pref_QMIX_learner:
                 else:
                     q_total_loss = q_loss / q_loss.abs().detach()
             else:
-                q_total_loss = q_loss / q_loss.abs().detach()
+                q_total_loss = q_loss
 
         # Optimize
         self.q_optimizer.zero_grad()
@@ -468,7 +468,8 @@ class Pref_QMIX_learner:
                 self.target_mixer.cuda()
 
             self.mixer_params = list(self.mixer.parameters())
-            self.mixer_optimizer = RMSprop(params=self.mixer_params, lr=self.args.lr)
+            self.mixer_optimizer = RMSprop(params=self.mixer_params, lr=self.args.lr, \
+                                           alpha=self.args.optim_alpha, eps=self.args.optim_eps)
 
     def cuda(self):
         self.mac.cuda()
