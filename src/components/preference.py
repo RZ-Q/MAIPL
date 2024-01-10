@@ -44,7 +44,7 @@ class ScriptPreferences:
         mac_out[avail_actions == 0] = -1e10
         mac_out = torch.softmax(mac_out, dim=-1)
         chosen_p = torch.gather(mac_out[:, :-1], dim=3, index=actions).squeeze(3)
-        cum_p = torch.prod(chosen_p * mask + (1 - mask), dim=1)
+        cum_p = torch.prod(chosen_p * mask * 10 + (1 - mask), dim=1)
         preferences = []
         for i in range(self.args.n_agents):
             for j in range(i + 1, self.args.n_agents):

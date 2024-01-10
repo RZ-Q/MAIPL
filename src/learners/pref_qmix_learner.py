@@ -163,15 +163,15 @@ class Pref_QMIX_learner:
 
         if self.args.direct_local_preference:
             if t_env > self.args.lcoal_pretrain_timesteps:
-                q_total_loss = q_loss / q_loss.abs().detach() + self.args.lamda * preference_loss / preference_loss.abs().detach()
+                q_total_loss = q_loss / (q_loss.abs().detach() + 1e-6) + self.args.lamda * preference_loss / (preference_loss.abs().detach() + 1e-6)
             else:
-                q_total_loss = q_loss / q_loss.abs().detach()
+                q_total_loss = q_loss
         else:
             if self.args.use_local_reward:
                 if t_env > self.args.lcoal_pretrain_timesteps:
-                    q_total_loss = q_loss / q_loss.abs().detach() + self.args.lamda * preference_loss / preference_loss.abs().detach()
+                    q_total_loss = q_loss / (q_loss.abs().detach() + 1e-6) + self.args.lamda * preference_loss / (preference_loss.abs().detach() + 1e-6)
                 else:
-                    q_total_loss = q_loss / q_loss.abs().detach()
+                    q_total_loss = q_loss
             else:
                 q_total_loss = q_loss
 
