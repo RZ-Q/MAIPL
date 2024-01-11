@@ -33,7 +33,7 @@ class RewardNet(nn.Module):
         elif self.active == "tan":
             x = self.tan(self.out_layer(x))
         elif self.active == "no":
-            return x
+            x = self.out_layer(x)
         return x
 
 # Global and Local reward model
