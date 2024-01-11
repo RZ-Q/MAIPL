@@ -8,6 +8,7 @@ from scipy.special import comb
 # from components.preference import ScriptGlobalRewardModelLabelss
 # from episode_buffer import EpisodeBatch, ReplayBuffer
 
+# TODO: -mean + mean, grad clip, remove activate, optimizer change
 class RewardNet(nn.Module):
     def __init__(self, in_size, out_size, hidden_size, active):
         super(RewardNet, self).__init__()
@@ -23,14 +24,17 @@ class RewardNet(nn.Module):
         self.active = active
 
     def forward(self, x):
+        # remove active function
         x = self.ac1(self.layer1(x))
         x = self.ac2(self.layer2(x))
         x = self.ac3(self.layer3(x))
         if self.active == "sig":
-            out = self.sig(self.out_layer(x))
-        else:
-            out = self.tan(self.out_layer(x))
-        return out
+            x = self.sig(self.out_layer(x))
+        elif self.active == "tan":
+            x = self.tan(self.out_layer(x))
+        elif self.active == "no":
+            return x
+        return x
 
 # Global and Local reward model
 class RewardModel:
