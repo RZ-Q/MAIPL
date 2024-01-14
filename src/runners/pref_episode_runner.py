@@ -156,6 +156,7 @@ class PrefEpisodeRunner:
         cur_stats["ep_length"] = self.t + cur_stats.get("ep_length", 0)
         if reward_model is not None:
             cur_stats["total_feedbacks"] = reward_model.get_feedbacks()
+            cur_stats["total_acc"] = reward_model.get_acc()
 
         if not test_mode:
             self.t_env += self.t
@@ -187,8 +188,10 @@ class PrefEpisodeRunner:
         indi_returns.clear()
 
         for k, v in stats.items():
-            if k != "n_episodes" and k != "total_feedbacks":
+            if k != "n_episodes" and k != "total_feedbacks" and k != "total_acc":
                 self.logger.log_stat(prefix + k + "_mean" , v/stats["n_episodes"], self.t_env)
             elif k == "total_feedbacks":
                 self.logger.log_stat(prefix + "total_feedbacks", stats["total_feedbacks"], self.t_env)
+            elif k == "total_acc":
+                self.logger.log_stat(prefix + "total_acc", stats["total_acc"], self.t_env)
         stats.clear()
