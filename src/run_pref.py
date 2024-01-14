@@ -32,11 +32,13 @@ def run_pref(_run, _config, _log):
     _log.info("\n\n" + experiment_params + "\n")
 
     # configure tensorboard logger
-    unique_token = """Pref_{}__{}__{}__feedback{}\
+    unique_token = """Pref_{}__{}__{}_{}__rlr{}__feedback{}\
 __seg{}__cap{}__globaltype{}__{}__{}__localtype{}_{}__{}__{}__{}_{}""".format(
         args.name,
         args.env_args["map_name"],
         args.seed,
+        "sparse" if args.env_args["reward_sparse"] else "dense",
+        args.reward_lr,
         args.max_feedback,
         args.segment_size,
         args.segment_capacity,
