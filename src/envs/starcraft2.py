@@ -517,6 +517,8 @@ class StarCraft2Env(MultiAgentEnv):
                         agents_dense_rewards[r] += self.reward_win / self.n_agents
                 else:
                     reward = 1
+                    for r in range(self.n_agents):
+                        agents_dense_rewards[r] += self.reward_win / self.n_agents
             elif game_end_code == -1 and not self.defeat_counted:
                 self.defeat_counted = True
                 if not self.reward_sparse:
@@ -525,6 +527,8 @@ class StarCraft2Env(MultiAgentEnv):
                         agents_dense_rewards[r] += self.reward_defeat / self.n_agents
                 else:
                     reward = -1
+                    for r in range(self.n_agents):
+                        agents_dense_rewards[r] += self.reward_defeat / self.n_agents
 
         elif self._episode_steps >= self.episode_limit:
             # Episode limit reached
@@ -767,14 +771,13 @@ class StarCraft2Env(MultiAgentEnv):
         self.reward_only_positive == False, - (damage dealt to ally units
         + reward_death_value per ally unit killed) * self.reward_negative_scale
         """
-        if self.reward_sparse:
-            return 0
 
         reward = 0
         delta_deaths = 0
         delta_ally = 0
         delta_enemy = 0
         agents_dense_rewards = np.array([0.0 for _ in range(self.n_agents)])
+        agents_dense_rewards_positive = np.array([0.0 for _ in range(self.n_agents)])
 
         neg_scale = self.reward_negative_scale
 
@@ -799,16 +802,17 @@ class StarCraft2Env(MultiAgentEnv):
                         delta_deaths -= self.reward_death_value * neg_scale
                     if not self.reward_indi_only_positive:
                         agents_dense_rewards[al_id] -= self.reward_death_value * neg_scale
-                    delta_ally += prev_health * neg_scale
-                    agents_dense_rewards[al_id] -= prev_health * neg_scale
+                        agents_dense_rewards[al_id] -= prev_health * neg_scale
+                    delta_ally += prev_health * neg_scale                   
                 else:
                     # still alive
                     delta_ally += neg_scale * (
                         prev_health - al_unit.health - al_unit.shield
                     )
-                    agents_dense_rewards[al_id] -= neg_scale * (
-                        prev_health - al_unit.health - al_unit.shield
-                    )
+                    if not self.reward_indi_only_positive:
+                        agents_dense_rewards[al_id] -= neg_scale * (
+                            prev_health - al_unit.health - al_unit.shield
+                        )
 
         for e_id, e_unit in self.enemies.items():
             if not self.death_tracker_enemy[e_id]:
@@ -839,6 +843,9 @@ class StarCraft2Env(MultiAgentEnv):
             reward = abs(delta_enemy + delta_deaths)  # shield regeneration
         else:
             reward = delta_enemy + delta_deaths - delta_ally
+
+        if self.reward_sparse:
+            return 0, agents_dense_rewards
 
         return reward, agents_dense_rewards
 
