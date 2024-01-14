@@ -47,6 +47,7 @@ class RewardModel:
         # log
         self.total_feedback = 0.0
         self.labeled_feedback = 0
+        self.acc = 0.0
 
         # basic infos
         self.state_shape = self.args.state_shape
@@ -114,6 +115,9 @@ class RewardModel:
     
     def get_feedbacks(self):
         return self.total_feedback
+    
+    def get_acc(self):
+        return self.acc
 
     def change_batch(self, new_frac):
         self.sample_segment_size = int(new_frac * self.origin_sample_segment_size)
@@ -879,6 +883,7 @@ class RewardModel:
                     if total_acc > self.args.local_acc:
                         print("update:", _)
                         break
+            self.acc = total_acc
             self.logger.console_logger.info(
                 "Local Reward function is updated!! ACC:{}".format(str(total_acc)))
 
@@ -894,6 +899,7 @@ class GlobalRewardModel:
         # log
         self.total_feedback = 0.0
         self.labeled_feedback = 0
+        self.acc = 0.0
 
         # basic infos
         self.state_shape = self.args.state_shape
