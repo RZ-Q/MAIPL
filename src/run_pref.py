@@ -32,11 +32,12 @@ def run_pref(_run, _config, _log):
     _log.info("\n\n" + experiment_params + "\n")
 
     # configure tensorboard logger
-    unique_token = """Pref_{}__{}__{}_{}__rlr{}__feedback{}\
-__seg{}__cap{}__globaltype{}__{}__{}__localtype{}_{}__{}__{}__{}_{}""".format(
+    unique_token = """{}__{}__{}_uns{}_{}_rlr{}__feedback{}\
+__seg{}_cp{}__globaltype{}__{}__{}__localtype{}_{}__{}__{}_{}_{}_{}""".format(
         args.name,
         args.env_args["map_name"],
         args.seed,
+        args.num_unsup_timesteps,
         "sparse" if args.env_args["reward_sparse"] else "dense",
         args.reward_lr,
         args.max_feedback,
@@ -49,6 +50,7 @@ __seg{}__cap{}__globaltype{}__{}__{}__localtype{}_{}__{}__{}__{}_{}""".format(
         "direct" if args.direct_local_preference else "nodi",
         args.local_preference_type_training,
         args.lamda,
+        "lde" if args.lamda_decay else "l",
         args.lcoal_pretrain_timesteps,
         datetime.datetime.now().strftime("%Y-%m-%d_%H-%M-%S"),
     )
