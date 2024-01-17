@@ -21,7 +21,14 @@ class RewardNet(nn.Module):
         self.out_layer = nn.Linear(hidden_size, out_size) 
         self.tan = nn.Tanh()
         self.sig = nn.Sigmoid()
+        self.relu = nn.ReLU()
         self.active = active
+
+    def reset_params(self):
+        nn.init.xavier_uniform_(self.layer1.weight)
+        nn.init.xavier_uniform_(self.layer2.weight)
+        nn.init.xavier_uniform_(self.layer3.weight)
+        nn.init.xavier_uniform_(self.out_layer.weight)
 
     def forward(self, x):
         # remove active function
@@ -34,6 +41,8 @@ class RewardNet(nn.Module):
             x = self.tan(self.out_layer(x))
         elif self.active == "no":
             x = self.out_layer(x)
+        else:
+            x = self.relu(self.out_layer(x))
         return x
 
 # Global and Local reward model
@@ -122,7 +131,22 @@ class RewardModel:
     def change_batch(self, new_frac):
         self.sample_segment_size = int(new_frac * self.origin_sample_segment_size)
     
+    def reset_local_params(self):
+        for _ in range(self.ensemble_size):
+            self.local_ensemble[_].reset_params()
+
     def construct_ensemble(self):
+        # reset model
+        # global
+        self.ensemble = []
+        self.param_list = []
+        self.optimizer = None
+        # local
+        self.local_ensemble = []
+        self.local_param_list = []
+        self.local_optimizer = None
+
+        # add model to list
         for _ in range(self.ensemble_size):
             model = (
                 RewardNet(
@@ -883,6 +907,18 @@ class RewardModel:
                     if total_acc > self.args.local_acc:
                         print("update:", _)
                         break
+                if total_acc < self.args.local_acc:
+                    self.construct_ensemble()
+                    self.reset_local_params()
+                    # update reward
+                    for _ in range(self.args.reward_update):
+                        train_acc = self.train_local_reward_between_seg()
+                        total_acc = np.mean(train_acc)
+                        # TODO: modify reward training logic
+                        # or test reset
+                        if total_acc > self.args.local_acc:
+                            print("update:", _)
+                            break
             self.acc = total_acc
             self.logger.console_logger.info(
                 "Local Reward function is updated!! ACC:{}".format(str(total_acc)))
