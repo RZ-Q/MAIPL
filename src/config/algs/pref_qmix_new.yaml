@@ -6,7 +6,7 @@ epsilon_start: 1.0
 epsilon_finish: 0.05
 epsilon_anneal_time: 50000
 
-runner: "pref_episode"
+runner: "pref_episode_new"
 
 buffer_size: 5000
 
@@ -22,46 +22,37 @@ mixing_embed_dim: 32
 hypernet_layers: 2
 hypernet_embed: 64
 
-name: "pref_qmix"
+name: "pref_qmix_new"
 
 # --- global and local RM ---
 run: "pref"
-use_global_reward: False
+use_global_reward: True
 use_local_reward: True  # cannot both set to false
 direct_local_preference: False
 # env interact
-num_seed_timesteps: 10
-num_unsup_timesteps: 1000
-k: 6  # for unsup training
-num_interact: 3000
-reset_critic: True
-max_feedback: 40000
-reward_schedule: True
+pretrain_timesteps: 100
+num_interact: 1
+max_labels: 1000000
+reward_schedule: False
 # reward model
 active: "sig"  # tan sig
 reward_lr: 0.0003
-reward_hidden_size: 256
-reward_update: 250
+reward_hidden_size: 512
+reward_update_times: 250
 ensemble_size: 3
-state_or_obs: True 
 actions_onehot: True
 reward_train_batch_size: 128
 loss_func: "cross_entropy"  # KL cross_entropy
 local_acc: 0.97
 # sample config
-sample_episode_size: 100  # sample these episodes from buffer
-sample_segment_size: 50  # sample these segmnet pairs from sampled episodes
+sample_method: "uniform"
+sample_batch_size: 32  # sample these episodes from buffer
+add_batch_size: 10
 segment_size: 10  # should not be larger than max_seq_len in episode_batch
-segment_capacity: 3000  # save these segment pairs
 # preference type
-global_preference_type: "true_rewards"  # policy true_rewards
-policy_dir: "results/models/qmix__3s_vs_5z__1__neg__2024-01-01_00-10-22/2000620"
-local_preference_type: "true_indi_rewards"  # policy true_indi_rewards
-local_preference_type_training: "indi_rewards"  # policy indi_rewards
+policy_dir: "results/models/qmix__5m_vs_6m__3__neg__2024-01-01_00-10-45/2000249"
 # local pretrain
 lamda: 10
 lamda_decay: True
 lcoal_pretrain_timesteps: 10000  # 10000 for 3m, 200000 for 5mvs6m
 lcoal_label_equal_thres: 0.4
-# 660681356 352354207 930380166 521243978 830630244
-# seed: 107086741

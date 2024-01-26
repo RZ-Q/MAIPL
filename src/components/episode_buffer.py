@@ -312,14 +312,16 @@ class ReplayBuffer(EpisodeBatch):
             bs, seq_len, _, _ = actions.shape
             obses = self[index * batch_size : last_index]["obs"]
             ids = th.eye(self.args.n_agents).expand(bs, seq_len, -1, -1)
+            states = self[index * batch_size : last_index]["state"]   
             if self.args.state_or_obs:
-                states = self[index * batch_size : last_index]["state"]   
                 global_inputs = th.cat([states, actions.view(bs, seq_len, -1)], dim=-1)
             else:
                 global_inputs = th.cat([obses, actions], dim=-1).view(bs, seq_len, -1)      
-            inputs = th.cat((obses, ids, actions), dim=-1) 
-            pred_reward = reward_model.r_hat(global_inputs).to('cpu')
-            self[index * batch_size : last_index]["reward_hat"] = pred_reward
+            inputs = th.cat((states.repeat(1, 1, self.args.n_agents).view(bs, seq_len, self.args.n_agents, -1)
+                            , ids, actions, obses), dim=-1) 
+            if self.args.use_global_reward:
+                pred_reward = reward_model.r_hat(global_inputs).to('cpu')
+                self[index * batch_size : last_index]["reward_hat"] = pred_reward
             if self.args.use_local_reward:
                 pred_indi_reward = reward_model.local_r_hat(inputs).to('cpu')
                 self[index * batch_size : last_index]["indi_reward_hat"] = pred_indi_reward
