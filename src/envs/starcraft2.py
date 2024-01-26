@@ -513,24 +513,25 @@ class StarCraft2Env(MultiAgentEnv):
                 info["battle_won"] = True
                 if not self.reward_sparse:
                     reward += self.reward_win
-                    for r in range(self.n_agents):
-                        agents_dense_rewards[r] += self.reward_win / self.n_agents
+                    # TODO:for highlight, reward_win/defeat useless for compare
+                    # for r in range(self.n_agents):
+                    #     agents_dense_rewards[r] += self.reward_win / self.n_agents
                 else:
                     # sparse setting change
                     reward = self.reward_win
-                    for r in range(self.n_agents):
-                        agents_dense_rewards[r] += self.reward_win / self.n_agents
+                    # for r in range(self.n_agents):
+                    #     agents_dense_rewards[r] += self.reward_win / self.n_agents
             elif game_end_code == -1 and not self.defeat_counted:
                 self.defeat_counted = True
                 if not self.reward_sparse:
                     reward += self.reward_defeat
-                    for r in range(self.n_agents):
-                        agents_dense_rewards[r] += self.reward_defeat / self.n_agents
+                    # for r in range(self.n_agents):
+                    #     agents_dense_rewards[r] += self.reward_defeat / self.n_agents
                 else:
                     # sparse setting change
                     reward = self.reward_defeat
-                    for r in range(self.n_agents):
-                        agents_dense_rewards[r] += self.reward_defeat / self.n_agents
+                    # for r in range(self.n_agents):
+                    #     agents_dense_rewards[r] += self.reward_defeat / self.n_agents
 
         elif self._episode_steps >= self.episode_limit:
             # Episode limit reached
