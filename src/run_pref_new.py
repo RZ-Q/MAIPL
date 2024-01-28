@@ -121,15 +121,16 @@ def run_sequential(args, logger):
 
     # Setup multiagent controller here
     mac = mac_REGISTRY[args.mac](buffer.scheme, groups, args)
+    pref_mac = mac_REGISTRY[args.pref_mac](buffer.scheme, groups, args)
 
     # Give runner the scheme
     runner.setup(scheme=scheme, groups=groups, preprocess=preprocess, mac=mac)
 
     # Learner
-    learner = le_REGISTRY[args.learner](mac, buffer.scheme, logger, args)
+    learner = le_REGISTRY[args.learner](mac, buffer.scheme, logger, args, pref_mac)
 
     # Reward model
-    reward_model = RewardModel(args, mac, logger)
+    reward_model = RewardModel(args, pref_mac, logger)
 
     if args.use_cuda:
         learner.cuda()

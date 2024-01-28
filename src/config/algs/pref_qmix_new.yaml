@@ -15,7 +15,7 @@ target_update_interval: 200
 
 # use the Q_Learner to train
 agent_output_type: "q"
-learner: "pref_qmix_learner"
+learner: "pref_qmix_learner_new"
 double_q: True
 mixer: "qmix"
 mixing_embed_dim: 32
@@ -26,8 +26,9 @@ name: "pref_qmix_new"
 
 # --- global and local RM ---
 run: "pref"
-use_global_reward: True
-use_local_reward: True  # cannot both set to false
+pref_mac: "basic_mac" # Basic controller
+use_global_reward: False
+use_local_reward: False  # cannot both set to false
 direct_local_preference: False
 # env interact
 pretrain_timesteps: 100
@@ -37,10 +38,10 @@ reward_schedule: False
 # reward model
 active: "sig"  # tan sig
 reward_lr: 0.0003
-reward_hidden_size: 512
+reward_hidden_size: 64
 reward_update_times: 250
 ensemble_size: 3
-actions_onehot: True
+actions_onehot: False
 reward_train_batch_size: 128
 loss_func: "cross_entropy"  # KL cross_entropy
 local_acc: 0.97
@@ -54,5 +55,5 @@ policy_dir: "results/models/qmix__5m_vs_6m__3__neg__2024-01-01_00-10-45/2000249"
 # local pretrain
 lamda: 10
 lamda_decay: True
-lcoal_pretrain_timesteps: 10000  # 10000 for 3m, 200000 for 5mvs6m
+apply_local_timesteps: 10000  # 10000 for 3m, 200000 for 5mvs6m
 lcoal_label_equal_thres: 0.4
