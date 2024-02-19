@@ -186,7 +186,7 @@ def run_sequential(args, logger):
 
     while runner.t_env <= args.t_max:
         # Run for a whole episode at a time
-        episode_batch = runner.run(test_mode=False, random=False)
+        episode_batch = runner.run(test_mode=False)
         # print("run a batch")
         buffer.insert_episode_batch(episode_batch)
 
