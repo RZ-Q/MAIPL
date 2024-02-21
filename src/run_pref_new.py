@@ -15,6 +15,7 @@ from controllers import REGISTRY as mac_REGISTRY
 from components.episode_buffer import ReplayBuffer
 from components.transforms import OneHot
 from components.reward_model_new import RewardModel
+from scipy.special import comb
 
 
 def run_pref(_run, _config, _log):
@@ -32,10 +33,16 @@ def run_pref(_run, _config, _log):
     _log.info("\n\n" + experiment_params + "\n")
 
     # configure tensorboard logger
-    unique_token = """{}_{}_{}_{}""".format(
+    unique_token = """{}_{}_{}_{}_{}_{}_aply{}_lamda{}_{}_{}""".format(
         args.name,
         args.env_args["map_name"],
         args.seed,
+        "global" if args.use_global_reward else "noglob",
+        "local" if args.use_local_reward else "nolocal",
+        "direct" if args.direct_local_preference else "nodirect",
+        args.apply_local_timesteps,
+        args.lamda,
+        "decay" if args.lamda_decay else "nodecay",
         datetime.datetime.now().strftime("%Y-%m-%d_%H-%M-%S"),
     )
     args.unique_token = unique_token
@@ -104,6 +111,7 @@ def run_sequential(args, logger):
         "reward": {"vshape": (1,)},
         "terminated": {"vshape": (1,), "dtype": th.uint8},
         "indi_terminated": {"vshape": (env_info["n_agents"],), "dtype": th.uint8},
+        "agent_wise_mask": {"vshape": (int(comb(env_info["n_agents"],2)),), "dtype": th.uint8},
     }
     args.action_shape = scheme["actions"]["vshape"][0]
     groups = {"agents": args.n_agents}
@@ -195,27 +203,31 @@ def run_sequential(args, logger):
             if episode_sample.device != args.device:
                 episode_sample.to(args.device)
 
-            # unsup is no need now 
-            if runner.t_env >= args.pretrain_timesteps:
-                # labels is unlimited now, max_labels 1000000
-                # currently just use local_labels
-                if reward_model.local_labels < args.max_labels:
-                    if interact_count == args.num_interact:
-                        # update reward model ma_size schedule
-                        if args.reward_schedule:
-                            # TODO: add schedule method
-                            frac = (args.t_max - runner.t_env) / args.t_max
-                            if frac == 0:
-                                frac = 0.01
-                        else:
-                            frac = 1
-                        reward_model.change_batch(frac)
-                        reward_model.learn_reward(episode_sample)
-                        interact_count = 0
+            if args.direct_local_preference:
+                learner.train(episode_sample, runner.t_env, episode, reward_model)
 
-            learner.train(episode_sample, runner.t_env, episode, reward_model)
-        
-            interact_count += 1
+            else:
+                # unsup is no need now 
+                if runner.t_env >= args.pretrain_timesteps:
+                    # labels is unlimited now, max_labels 1000000
+                    # currently just use local_labels
+                    if reward_model.local_labels < args.max_labels:
+                        if interact_count == args.num_interact:
+                            # update reward model ma_size schedule
+                            if args.reward_schedule:
+                                # TODO: add schedule method
+                                frac = (args.t_max - runner.t_env) / args.t_max
+                                if frac == 0:
+                                    frac = 0.01
+                            else:
+                                frac = 1
+                            reward_model.change_batch(frac)
+                            reward_model.learn_reward(episode_sample)
+                            interact_count = 0
+
+                learner.train(episode_sample, runner.t_env, episode, reward_model)
+            
+                # interact_count += 1
 
         # Execute test runs once in a while
         n_test_runs = max(1, args.test_nepisode // runner.batch_size)
