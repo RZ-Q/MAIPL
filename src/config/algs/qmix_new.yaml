@@ -15,21 +15,21 @@ target_update_interval: 200
 
 # use the Q_Learner to train
 agent_output_type: "q"
-learner: "pref_qmix_learner_new"
+learner: "q_learner_new"
 double_q: True
 mixer: "qmix"
 mixing_embed_dim: 32
 hypernet_layers: 2
 hypernet_embed: 64
 
-name: "pref_qmix_new"
+name: "qmix_new"
 
 # --- global and local RM ---
 run: "pref"
 pref_mac: "basic_mac" # Basic controller
 use_global_reward: False
-use_local_reward: True  # cannot both set to false
-direct_local_preference: False
+use_local_reward: False  # cannot both set to false
+direct_local_preference: True
 # env interact
 pretrain_timesteps: 1000
 num_interact: 1

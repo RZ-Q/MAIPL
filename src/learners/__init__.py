@@ -7,10 +7,12 @@ from .max_q_learner import MAXQLearner
 from .dmaq_qatten_learner_globalRM import DMAQ_qattenLearnerGlobalRM
 from .max_q_learner_globalRM import MAXQLearnerGlobalRM
 from .pref_qmix_learner_new import Pref_QMIX_learner_new
+from .q_learner_new import QLearnerNew
 
 REGISTRY = {}
 
 REGISTRY["q_learner"] = QLearner
+REGISTRY["q_learner_new"] = QLearnerNew
 REGISTRY["qdiffer_learner"] = QLearner_differ
 REGISTRY["pref_qmix_learner"] = Pref_QMIX_learner
 REGISTRY["q_learner_w_globalRM"] = QLearnerGlobalRM

@@ -313,6 +313,9 @@ class StarCraft2Env(MultiAgentEnv):
         self._sc2_proc = None
         self._controller = None
 
+        # agent_wise pair mask
+        self.indi_terminated = []
+
         # Try to avoid leaking SC2 processes on shutdown
         atexit.register(lambda: self.close())
 
@@ -416,6 +419,7 @@ class StarCraft2Env(MultiAgentEnv):
         self.defeat_counted = False
 
         self.last_action = np.zeros((self.n_agents, self.n_actions))
+        self.indi_terminated = []
 
         if self.heuristic_ai:
             self.heuristic_targets = [None] * self.n_agents
@@ -481,8 +485,7 @@ class StarCraft2Env(MultiAgentEnv):
             self._obs = self._controller.observe()
         except (protocol.ProtocolError, protocol.ConnectionError):
             self.full_restart()
-            # avoid empty "indi_reward" value
-            return 0, True, {"indi_reward": np.array([0.0 for _ in range(self.n_agents)])}
+            return 0, True, {}
 
         self._total_steps += 1
         self._episode_steps += 1
@@ -1964,4 +1967,23 @@ class StarCraft2Env(MultiAgentEnv):
                 terminate.append(0)
             else:
                 terminate.append(1)
+        self.indi_terminated.append(terminate)
         return terminate
+    
+    def get_agent_wise_mask(self):
+        indi_mask = 1 - np.array(self.indi_terminated)
+        indi_lens = indi_mask.sum(0)
+        index = np.unique(indi_lens)
+        agent_wise_mask = []
+        for i in range(self.n_agents):
+            for j in range(i+1, self.n_agents):
+                min_len = min(indi_lens[i], indi_lens[j])
+                if np.where(index-min_len==0)[0][0] == 0:
+                    low_index = 0
+                else:
+                    low_index = index[np.where(index-min_len==0)[0][0] - 1]
+                mask_ij = indi_mask[:,i] * indi_mask[:,j]
+                mask_ij[:low_index] = mask_ij[:low_index] * 0
+                agent_wise_mask.append(mask_ij)
+        agent_wise_mask = np.array(agent_wise_mask)
+        return agent_wise_mask

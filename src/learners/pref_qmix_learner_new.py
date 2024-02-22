@@ -165,6 +165,7 @@ class Pref_QMIX_learner_new:
             lamda = self.args.lamda
 
         if self.args.direct_local_preference:
+            #TODO: BC loss, TD loss remove, learner多次
             if t_env > self.args.apply_local_timesteps:
                 q_total_loss = q_loss / (q_loss.abs().detach() + 1e-6) + lamda * preference_loss / (preference_loss.abs().detach() + 1e-6)
             else:
@@ -217,6 +218,7 @@ class Pref_QMIX_learner_new:
         mask[:, 1:] = mask[:, 1:] * (1 - terminated[:, :-1])
         indi_mask[:, 1:] = batch["filled"][:,:-1].float()[:, 1:] * (1 - indi_terminated[:, :-1])
         avail_actions = batch["avail_actions"]
+        agent_wise_mask = batch["agent_wise_mask"][:, :-1].float()
 
         # Calculate estimated Q-Values
         mac_out = []
@@ -234,11 +236,13 @@ class Pref_QMIX_learner_new:
         indi_masks = []
         for i in range(self.args.n_agents):
             for j in range(i + 1, self.args.n_agents):
-                indi_mask_ij = indi_mask[:,:,i] * indi_mask[:,:,j]
+                # indi_mask_ij = indi_mask[:,:,i] * indi_mask[:,:,j]
+                indi_mask_ij = agent_wise_mask[:,:,i+j-1]
                 label = 1.0 * ((chosen_logp[:,:,i] * indi_mask_ij).sum(1) < (chosen_logp[:,:,j] * indi_mask_ij).sum(1))
                 labels.append(th.stack((1-label, label), dim=-1))
-                indi_masks.append(indi_mask_ij)
-        return th.stack(labels, dim=1), th.stack(indi_masks, dim=-1)
+                # indi_masks.append(indi_mask_ij)
+        # return th.stack(labels, dim=1), th.stack(indi_masks, dim=-1)
+        return th.stack(labels, dim=1), agent_wise_mask
 
     # def cal_indi_reward(grad_qtot_qi, td_error, chosen_action_qvals, target_max_qvals):
     def cal_indi_reward(self, grad_qtot_qi, mixer_td_error, qi, target_qi, indi_terminated):

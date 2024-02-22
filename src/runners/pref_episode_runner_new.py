@@ -4,6 +4,7 @@ from torch.distributions import Categorical
 from components.episode_buffer import EpisodeBatch
 import numpy as np
 import torch.nn.functional as F
+import torch
 
 class PrefEpisodeRunner:
 
@@ -90,6 +91,9 @@ class PrefEpisodeRunner:
             "obs": [self.env.get_obs()]
         }
         self.batch.update(last_data, ts=self.t)
+        agent_wise_mask = self.env.get_agent_wise_mask()
+        agent_wise_mask = torch.tensor(agent_wise_mask).transpose(0,1).unsqueeze(0)
+        self.batch["agent_wise_mask"][:,:agent_wise_mask.shape[1],:] = agent_wise_mask
 
         # Select actions in the last stored state
         actions = self.mac.select_actions(self.batch, t_ep=self.t, t_env=self.t_env, test_mode=test_mode)

@@ -132,6 +132,7 @@ class RewardModel:
         indi_mask[:, 1:] = episode_sample["filled"].float()[:, 1:] * (1 - indi_terminated[:, :-1])
         episode_sample["mask"] = mask
         episode_sample["indi_mask"] = indi_mask
+        agent_wise_mask = episode_sample["agent_wise_mask"]
 
         # sample index
         batch_index_1 = np.random.choice(num_episodes, size=self.sample_batch_size, replace=True)
@@ -148,6 +149,7 @@ class RewardModel:
             "reward": [],
             "mask": [],
             "indi_mask": [],
+            "agent_wise_mask": [],
         }
         query2 = copy.deepcopy(query1)
 
