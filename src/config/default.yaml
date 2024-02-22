@@ -20,9 +20,9 @@ buffer_cpu_only: True # If true we won't keep all of the replay buffer in vram
 use_tensorboard: False # Log results to tensorboard
 save_model: False # Save the models to disk
 save_model_interval: 500000 # Save models after this many timesteps
-checkpoint_path: "results/models/qmix__5m_vs_6m__173041785__neg__2024-02-01_10-10-35" # Load a checkpoint from this path
-evaluate: True # Evaluate model for test_nepisode episodes and quit (no training)
-load_step: 4800754 # Load model trained on this many timesteps (0 if choose max possible)
+checkpoint_path: "" # Load a checkpoint from this path
+evaluate: False # Evaluate model for test_nepisode episodes and quit (no training)
+load_step: 0 # Load model trained on this many timesteps (0 if choose max possible)
 save_replay: False # Saving the replay of the model loaded from checkpoint_path
 local_results_path: "results" # Path for local results
 
