@@ -13,7 +13,7 @@ import yaml
 
 from run import run
 from run_globalRM import run_globalRM
-from run_pref import run_pref
+from run_pref_new import run_pref
 
 SETTINGS['CAPTURE_MODE'] = "fd" # set to "no" if you want to see stdout/stderr in console
 logger = get_logger()

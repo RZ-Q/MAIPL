@@ -17,7 +17,7 @@ env_args:
   reward_defeat: 0
   reward_negative_scale: 0.5
   reward_only_positive: True
-  reward_indi_only_positive: False
+  reward_indi_only_positive: True
   reward_scale: True
   reward_scale_rate: 20
   reward_sparse: False

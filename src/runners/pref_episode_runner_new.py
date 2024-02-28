@@ -3,9 +3,10 @@ from functools import partial
 from torch.distributions import Categorical
 from components.episode_buffer import EpisodeBatch
 import numpy as np
+import torch.nn.functional as F
+import torch
 
-
-class EpisodeRunner:
+class PrefEpisodeRunner:
 
     def __init__(self, args, logger):
         self.args = args
@@ -46,7 +47,7 @@ class EpisodeRunner:
         self.env.reset()
         self.t = 0
 
-    def run(self, test_mode=False):
+    def run(self, test_mode=False, reward_model=None):
         self.reset()
 
         terminated = False
@@ -57,6 +58,7 @@ class EpisodeRunner:
 
             pre_transition_data = {
                 "state": [self.env.get_state()],
+                "agent_state": [self.env.get_state_agents()],
                 "avail_actions": [self.env.get_avail_actions()],
                 "obs": [self.env.get_obs()]
             }
@@ -65,9 +67,7 @@ class EpisodeRunner:
 
             # Pass the entire batch of experiences up till now to the agents
             # Receive the actions for each agent at this timestep in a batch of size 1
-            actions = self.mac.select_actions(
-                self.batch, t_ep=self.t, t_env=self.t_env, test_mode=test_mode
-            )
+            actions = self.mac.select_actions( self.batch, t_ep=self.t, t_env=self.t_env, test_mode=test_mode)
 
             reward, terminated, env_info = self.env.step(actions[0])
             episode_return += reward
@@ -76,9 +76,12 @@ class EpisodeRunner:
                 "actions": actions,
                 "reward": [(reward,)],
                 "terminated": [(terminated != env_info.get("episode_limit", False),)],
+                "indi_terminated": [self.env.get_indi_terminated()],
             }
 
             self.batch.update(post_transition_data, ts=self.t)
+            # remove reward model, only inference during learner training
+            # remove reward_hat and indi_reward_hat, just used in learner.train
 
             self.t += 1
 
@@ -88,6 +91,9 @@ class EpisodeRunner:
             "obs": [self.env.get_obs()]
         }
         self.batch.update(last_data, ts=self.t)
+        agent_wise_mask = self.env.get_agent_wise_mask()
+        agent_wise_mask = torch.tensor(agent_wise_mask).transpose(0,1).unsqueeze(0)
+        self.batch["agent_wise_mask"][:,:agent_wise_mask.shape[1],:] = agent_wise_mask
 
         # Select actions in the last stored state
         actions = self.mac.select_actions(self.batch, t_ep=self.t, t_env=self.t_env, test_mode=test_mode)
@@ -99,6 +105,11 @@ class EpisodeRunner:
         cur_stats.update({k: cur_stats.get(k, 0) + env_info.get(k, 0) for k in set(cur_stats) | set(env_info)})
         cur_stats["n_episodes"] = 1 + cur_stats.get("n_episodes", 0)
         cur_stats["ep_length"] = self.t + cur_stats.get("ep_length", 0)
+        if reward_model is not None:
+            cur_stats["global_labels"] = reward_model.global_labels
+            cur_stats["local_labels"] = reward_model.local_labels
+            cur_stats["global_acc"] = reward_model.global_acc
+            cur_stats["local_acc"] = reward_model.local_acc
 
         if not test_mode:
             self.t_env += self.t
@@ -121,6 +132,14 @@ class EpisodeRunner:
         returns.clear()
 
         for k, v in stats.items():
-            if k != "n_episodes":
+            if k != "n_episodes" and k != "global_labels" and k != "local_labels" and k != "global_acc" and k != "local_acc":
                 self.logger.log_stat(prefix + k + "_mean" , v/stats["n_episodes"], self.t_env)
+            elif k == "global_labels":
+                self.logger.log_stat(prefix + "global_labels", stats["global_labels"], self.t_env)
+            elif k == "local_labels":
+                self.logger.log_stat(prefix + "local_labels", stats["local_labels"], self.t_env)
+            elif k == "global_acc":
+                self.logger.log_stat(prefix + "global_acc", stats["global_acc"], self.t_env)
+            elif k == "local_acc":
+                self.logger.log_stat(prefix + "local_acc", stats["local_acc"], self.t_env)
         stats.clear()
