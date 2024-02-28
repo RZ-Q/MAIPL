@@ -53,8 +53,15 @@ class ReplayBuffer(object):
             np.logical_and(
                 np.logical_not(d[:,0]),
                 np.arange(data_size) < data_size - 1))
+        terminal_steps, = np.where(
+            np.logical_and(d[:,0], np.arange(data_size) < data_size))
         print('Found %d non-terminal steps out of a total of %d steps.' % (
             len(nonterminal_steps), data_size))
+        print('Found %d total episodes out of %d steps.' % (
+            len(terminal_steps), data_size))
+        
+        # TODO: process to episodic form, add no-op action and same state to the last S
+        # Hopper-v2-3x1-expert.hdf5 1481 episodes, lengths 54~1000 mean 675
 
         self.o = o[nonterminal_steps]
         self.s = s[nonterminal_steps]

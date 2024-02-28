@@ -78,6 +78,7 @@ def run(config):
     
     # Datasets
     offline_dataset = ReplayBuffer(state_dim, action_dim, n_agents, env_name, config['data_dir'], device=config['device'])
+    #TODO:(for highlight) offline_dataset.load() process datas to single-step (s,a,s')
     offline_dataset.load()
 
     result_logs = {}
