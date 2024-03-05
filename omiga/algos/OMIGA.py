@@ -8,7 +8,7 @@ from networks.network import Actor, V_critic, Q_critic, MixNet
 
 class OMIGA(object):
     def __init__(self, observation_spec, action_spec, num_agent, eval_env, config):
-        self._alpha = 10
+        self._alpha = 10 # 1 for mediumquality dataset of the HalfCheetah task
         self._gamma = config['gamma']
         self._tau = config['tau']
         self._hidden_sizes = config['hidden_sizes']
