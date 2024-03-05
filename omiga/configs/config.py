@@ -23,6 +23,7 @@ def get_parser():
     parser.add_argument('--device', default='cuda:0', type=str)
     parser.add_argument('--wandb', default=False, type=boolean)
     parser.add_argument('--data_dir', default='/data/', type=str)
+    parser.add_argument('--log_data', default=False, type=boolean)
 
     parser.add_argument('--total_iterations', default=int(1e6), type=int)
     parser.add_argument('--log_iterations', default=int(5e3), type=int)
