@@ -72,9 +72,10 @@ def run(config):
     n_agents = len(env.observation_space)
     print('state_dim:', state_dim, 'action_dim:', action_dim, 'num_agents:', n_agents)
 
-    logger_kwargs = setup_logger_kwargs(env_name, config['seed'])
+    logger_kwargs = setup_logger_kwargs(env_name, config['seed'], datestamp=True)
     logger = Logger(**logger_kwargs)
-    logger.save_config(config)
+    if config['log_data'] == True:
+        logger.save_config(config)
     
     # Datasets
     offline_dataset = ReplayBuffer(state_dim, action_dim, n_agents, env_name, config['data_dir'], device=config['device'])
@@ -116,7 +117,8 @@ def run(config):
                 wandb.log(train_result)
 
     # Save results
-    logger.save_result_logs(result_logs)
+    if config['log_data'] == True:
+        logger.save_result_logs(result_logs)
 
     env.close()
     eval_env.close()
