@@ -234,7 +234,7 @@ class RewardModel:
 
             # prevent from out of range
             if len1 > self.segment_size:
-                time_index_1 = np.random.choice(len1 - self.segment_size)
+                time_index_1 = np.random.choice(len1 - self.segment_size) # shit should +1
                 for key in query1.keys():
                     query1[key].append(sampled_episodes[index1][key][:, time_index_1 : time_index_1 + self.segment_size])
             else:
