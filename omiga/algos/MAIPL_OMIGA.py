@@ -6,7 +6,7 @@ import torch.nn as nn
 import torch.nn.functional as F
 from networks.network import Actor, V_critic, Q_critic, MixNet
 
-class OMIGA(object):
+class MAIPL_OMIGA(object):
     def __init__(self, observation_spec, action_spec, num_agent, eval_env, config):
         self._alpha = 10 # 1 for mediumquality dataset of the HalfCheetah task
         self._gamma = config['gamma']
@@ -86,7 +86,8 @@ class OMIGA(object):
         })
         return result
     
-    def train_step(self, o, s, a, r, mask, s_next, o_next, a_next):
+    def train_step(self, offline_batch, pref_batch):
+        
         # Shared network values
         one_hot_agent_id = torch.eye(self._num_agent).expand(o.shape[0], -1, -1).to(self._device)
         o_with_id = torch.cat((o, one_hot_agent_id), dim=-1)
