@@ -37,4 +37,8 @@ def get_parser():
     parser.add_argument('--lr', default=5e-4, type=float)
     parser.add_argument('--grad_norm_clip', default=1.0, type=float)
 
+    parser.add_argument('--segment_length', default=100, type=int)
+    parser.add_argument('--num_feedbacks', default=30000, type=int)
+    parser.add_argument('--pref_batch_size', default=64, type=int)
+
     return parser
