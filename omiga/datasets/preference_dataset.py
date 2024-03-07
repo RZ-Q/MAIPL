@@ -1,8 +1,6 @@
 import numpy as np
 import torch
 import h5py
-from offline_dataset import ReplayBuffer
-
 
 class PrefDataset(object):
     def __init__(
@@ -40,6 +38,9 @@ class PrefDataset(object):
 
         self.labels = np.zeros((max_feedbacks, 1))
         self.device = torch.device(device)
+
+        self.iter = 0
+        self.permutation = None
     
     def load(self):
         print('==========Data loading==========')
@@ -55,7 +56,7 @@ class PrefDataset(object):
         f.close()
 
         print('==========PrefIndex loading==========')
-        index = np.load(self.pref_dir)
+        index = np.load(self.pref_dir).astype(int)
 
         for i in range(index.shape[0]):
             ind1, ind2 = index[i][0], index[i][1]
@@ -76,17 +77,24 @@ class PrefDataset(object):
             self.labels[i] = 1.0 * (self.r1[i].sum(0) < self.r2[i].sum(0))
         
         self.total_feedbacks = index.shape[0]
+        self.permutation = np.random.permutation(self.total_feedbacks)
     
     def sample(self, batch_size):
-        ind = np.random.randint(0, self.total_feedbacks, size=batch_size)
-        return (
-            torch.FloatTensor(self.o1[ind]).to(self.device),
-            torch.FloatTensor(self.s1[ind]).to(self.device),
-            torch.FloatTensor(self.a1[ind]).to(self.device),
-            torch.FloatTensor(self.mask1[ind]).to(self.device),
-            torch.FloatTensor(self.o2[ind]).to(self.device),
-            torch.FloatTensor(self.s2[ind]).to(self.device),
-            torch.FloatTensor(self.a2[ind]).to(self.device),
-            torch.FloatTensor(self.mask2[ind]).to(self.device),
-            torch.FloatTensor(self.labels[ind]).to(self.device),
-        )
+        iters = np.ceil(self.total_feedbacks / batch_size)
+        if self.iter == iters:
+            self.iter == 0
+            self.permutation = np.random.permutation(self.total_feedbacks)
+        else:
+            ind = self.permutation[self.iter * batch_size : min((self.iter + 1) * batch_size, self.total_feedbacks)]
+            self.iter += 1
+        return {
+            'obs_1': torch.FloatTensor(self.o1[ind]).to(self.device),
+            'state1': torch.FloatTensor(self.s1[ind]).to(self.device),
+            'action1': torch.FloatTensor(self.a1[ind]).to(self.device),
+            'mask1': torch.FloatTensor(self.mask1[ind]).to(self.device),
+            'obs2': torch.FloatTensor(self.o2[ind]).to(self.device),
+            'state2': torch.FloatTensor(self.s2[ind]).to(self.device),
+            'action2': torch.FloatTensor(self.a2[ind]).to(self.device),
+            'mask2': torch.FloatTensor(self.mask2[ind]).to(self.device),
+            'labels': torch.FloatTensor(self.labels[ind]).to(self.device),
+        }

@@ -7,7 +7,9 @@ from envs.env_wrappers import ShareDummyVecEnv
 from utils.logger import setup_logger_kwargs, Logger
 from utils.util import evaluate
 from datasets.offline_dataset import ReplayBuffer
-from algos.OMIGA import OMIGA
+from datasets.preference_dataset import PrefDataset
+# from algos.OMIGA import OMIGA
+from algos.MAIPL_OMIGA import MAIPL_OMIGA
 
 import wandb
 from tqdm import tqdm
@@ -72,6 +74,10 @@ def run(config):
     n_agents = len(env.observation_space)
     print('state_dim:', state_dim, 'action_dim:', action_dim, 'num_agents:', n_agents)
 
+    segment_length = config['segment_length']
+    num_feedbacks = config['num_feedbacks']
+    pref_dir = config['data_dir'] + env_name + "-" + str(num_feedbacks) + "-" + str(segment_length) + "pref_index.npy"
+
     logger_kwargs = setup_logger_kwargs(env_name, config['seed'], datestamp=True)
     logger = Logger(**logger_kwargs)
     if config['log_data'] == True:
@@ -79,8 +85,10 @@ def run(config):
     
     # Datasets
     offline_dataset = ReplayBuffer(state_dim, action_dim, n_agents, env_name, config['data_dir'], device=config['device'])
-    #TODO:(for highlight) offline_dataset.load() process datas to single-step (s,a,s')
+    pref_dataset = PrefDataset(state_dim, action_dim, n_agents, env_name, config['data_dir'], pref_dir, segment_length, device=config['device'])
+    # offline_dataset.load() process datas to single-step (s,a,s')
     offline_dataset.load()
+    pref_dataset.load()
 
     result_logs = {}
 
@@ -103,14 +111,15 @@ def run(config):
         return train_result
      
     # Agent
-    agent = OMIGA(state_dim, action_dim, n_agents, eval_env, config)
+    agent = MAIPL_OMIGA(state_dim, action_dim, n_agents, eval_env, config)
 
     # Train
     print('\n==========Start training==========')
 
     for iteration in tqdm(range(0, config['total_iterations']), ncols=70, desc=config['algo'], initial=1, total=config['total_iterations'], ascii=True, disable=os.environ.get("DISABLE_TQDM", False)):
-        o, s, a, r, mask, s_next, o_next, a_next = offline_dataset.sample(config['batch_size'])
-        train_result = agent.train_step(o, s, a, r, mask, s_next, o_next, a_next)
+        offline_batch = offline_dataset.sample(config['batch_size'])
+        pref_batch = pref_dataset.sample(config['pref_batch_size'])
+        train_result = agent.train_step(offline_batch, pref_batch)
         if iteration % config['log_iterations'] == 0:
             train_result = _eval_and_log(train_result, config)
             if config['wandb'] == True:

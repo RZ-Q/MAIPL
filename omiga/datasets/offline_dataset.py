@@ -24,16 +24,16 @@ class ReplayBuffer(object):
     def sample(self, batch_size):
         o_size = self.o.shape[0]
         ind = np.random.randint(0, o_size, size=batch_size)  
-        return (
-            torch.FloatTensor(self.o[ind]).to(self.device),
-            torch.FloatTensor(self.s[ind]).to(self.device),
-            torch.FloatTensor(self.a[ind]).to(self.device),
-            torch.FloatTensor(self.r[ind]).to(self.device),  
-            torch.FloatTensor(self.mask[ind]).to(self.device),
-            torch.FloatTensor(self.s_next[ind]).to(self.device),
-            torch.FloatTensor(self.o_next[ind]).to(self.device),
-            torch.FloatTensor(self.a_next[ind]).to(self.device)
-        )
+        return {
+            'obs': torch.FloatTensor(self.o[ind]).to(self.device),
+            'state': torch.FloatTensor(self.s[ind]).to(self.device),
+            'action': torch.FloatTensor(self.a[ind]).to(self.device),
+            'reward': torch.FloatTensor(self.r[ind]).to(self.device),  
+            'mask': torch.FloatTensor(self.mask[ind]).to(self.device),
+            'state_next': torch.FloatTensor(self.s_next[ind]).to(self.device),
+            'obs_next': torch.FloatTensor(self.o_next[ind]).to(self.device),
+            'action_next': torch.FloatTensor(self.a_next[ind]).to(self.device)
+        }
     
     def load(self):
         print('==========Data loading==========')
