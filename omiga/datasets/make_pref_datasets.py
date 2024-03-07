@@ -37,7 +37,7 @@ def make_pref_index(num_feedbacks, segment_length, file_dir, env_name):
         time_index_1 = terminal_steps[index1] - 1 - time_index_1
         time_index_2 = np.random.choice(episode_lens[index2] - segment_length + 1)
         time_index_2 = terminal_steps[index2] - 1 - time_index_2
-        index[i][0], index[i][1] = time_index_1, time_index_2
+        index[i][0], index[i][1] = int(time_index_1), int(time_index_2)
     
     np.save(file_dir + env_name + "-" + str(num_feedbacks) + "-" + str(segment_length) + "pref_index.npy", index)
 
