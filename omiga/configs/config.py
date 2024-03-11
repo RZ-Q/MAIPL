@@ -36,9 +36,17 @@ def get_parser():
     parser.add_argument('--batch_size', default=128, type=int)
     parser.add_argument('--lr', default=5e-4, type=float)
     parser.add_argument('--grad_norm_clip', default=1.0, type=float)
+    parser.add_argument('--alpha', default=10.0, type=float)
 
     parser.add_argument('--segment_length', default=100, type=int)
+    parser.add_argument('--subsample_size', default=64, type=int)
     parser.add_argument('--num_feedbacks', default=30000, type=int)
-    parser.add_argument('--pref_batch_size', default=64, type=int)
+    parser.add_argument('--pref_batch_size', default=8, type=int)
+    parser.add_argument('--target_clipping', default=True, type=boolean)
+    parser.add_argument('--chi2_coeff', default=0.5, type=float)
+    parser.add_argument('--chi2_replay_weight', default=0.5, type=float)
+    parser.add_argument('--value_replay_weight', default=0.5, type=float)
+    parser.add_argument('--policy_replay_weight', default=0.5, type=float)
+    parser.add_argument('--v_target', default=True, type=boolean)
 
     return parser
