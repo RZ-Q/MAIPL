@@ -109,8 +109,8 @@ def run(config):
     print('\n==========Start training==========')
 
     for iteration in tqdm(range(0, config['total_iterations']), ncols=70, desc=config['algo'], initial=1, total=config['total_iterations'], ascii=True, disable=os.environ.get("DISABLE_TQDM", False)):
-        o, s, a, r, mask, s_next, o_next, a_next = offline_dataset.sample(config['batch_size'])
-        train_result = agent.train_step(o, s, a, r, mask, s_next, o_next, a_next)
+        offline_batch = offline_dataset.sample(config['batch_size'])
+        train_result = agent.train_step(offline_batch)
         if iteration % config['log_iterations'] == 0:
             train_result = _eval_and_log(train_result, config)
             if config['wandb'] == True:
