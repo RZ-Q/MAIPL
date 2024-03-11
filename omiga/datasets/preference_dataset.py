@@ -12,6 +12,7 @@ class PrefDataset(object):
         data_dir,
         pref_dir,
         segment_length,
+        config,
         max_feedbacks=int(1e5),
         device="cuda",
     ):
@@ -23,6 +24,7 @@ class PrefDataset(object):
         self.pref_dir = pref_dir
         self.segment_length = segment_length
         self.device = device
+        self.subsample_size = config['subsample_size']
 
         self.o1 = np.zeros((max_feedbacks, segment_length, n_agents, state_dim))
         self.s1 = np.zeros((max_feedbacks, segment_length, n_agents, state_dim))
@@ -81,14 +83,16 @@ class PrefDataset(object):
     
     def sample(self, batch_size):
         iters = np.ceil(self.total_feedbacks / batch_size)
-        if self.iter == iters:
+        ind = self.permutation[self.iter * batch_size : min((self.iter + 1) * batch_size, self.total_feedbacks)]   
+        if self.iter == iters-1:
             self.iter == 0
             self.permutation = np.random.permutation(self.total_feedbacks)
         else:
-            ind = self.permutation[self.iter * batch_size : min((self.iter + 1) * batch_size, self.total_feedbacks)]
-            self.iter += 1
-        return {
-            'obs_1': torch.FloatTensor(self.o1[ind]).to(self.device),
+            self.iter += 1   
+        
+        if self.subsample_size is None:
+            return {
+            'obs1': torch.FloatTensor(self.o1[ind]).to(self.device),
             'state1': torch.FloatTensor(self.s1[ind]).to(self.device),
             'action1': torch.FloatTensor(self.a1[ind]).to(self.device),
             'mask1': torch.FloatTensor(self.mask1[ind]).to(self.device),
@@ -97,4 +101,19 @@ class PrefDataset(object):
             'action2': torch.FloatTensor(self.a2[ind]).to(self.device),
             'mask2': torch.FloatTensor(self.mask2[ind]).to(self.device),
             'labels': torch.FloatTensor(self.labels[ind]).to(self.device),
-        }
+            }
+        else:
+            # Note: subsample sequences currently do not support arbitrary obs/action spaces.
+            start = np.random.randint(0, self.segment_length - self.subsample_size)
+            end = start + self.subsample_size
+            return {
+            'obs1': torch.FloatTensor(self.o1[ind, start:end]).to(self.device),
+            'state1': torch.FloatTensor(self.s1[ind, start:end]).to(self.device),
+            'action1': torch.FloatTensor(self.a1[ind, start:end]).to(self.device),
+            'mask1': torch.FloatTensor(self.mask1[ind, start:end]).to(self.device),
+            'obs2': torch.FloatTensor(self.o2[ind, start:end]).to(self.device),
+            'state2': torch.FloatTensor(self.s2[ind, start:end]).to(self.device),
+            'action2': torch.FloatTensor(self.a2[ind, start:end]).to(self.device),
+            'mask2': torch.FloatTensor(self.mask2[ind, start:end]).to(self.device),
+            'labels': torch.FloatTensor(self.labels[ind]).to(self.device),
+            }
