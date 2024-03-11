@@ -53,14 +53,17 @@ def make_eval_env(config):
 
 
 def run(config):
-    assert config['algo']=='OMIGA', "Invalid algorithm"
+    # assert config['algo']=='OMIGA', "Invalid algorithm"
     assert config['env_name'] == 'mujoco', "Invalid environment"
     env_name = config['scenario'] + '-' + config['agent_conf'] + '-' + config['data_type']
-    exp_name = config['algo']
-    name = config['algo'] + '-' + config['scenario'] + '-' + config['agent_conf'] + '-' + config['data_type'] + '-' + 'test_s' + str(config['seed'])
+    exp_name = "OMIGA"
+    name = config['algo'] + '-' + str(config["batch_size"]) + '-' + str(config["pref_batch_size"]) + '-' + str(config["alpha"]) + \
+        '-' + "usevt" + str(config["v_target"]) + '-' + 'test_s' + str(config['seed'])
+    group_name = config['algo'] + '-' + str(config["batch_size"]) + '-' + str(config["pref_batch_size"]) + '-' + str(config["alpha"]) + \
+        '-' + "usevt" + str(config["v_target"])
 
     if config['wandb'] == True:
-        wandb.init(project=exp_name, name=name, group=env_name)
+        wandb.init(project=exp_name, name=name, group=group_name)
 
     # Seeding
     np.random.seed(config['seed'])
@@ -85,7 +88,7 @@ def run(config):
     
     # Datasets
     offline_dataset = ReplayBuffer(state_dim, action_dim, n_agents, env_name, config['data_dir'], device=config['device'])
-    pref_dataset = PrefDataset(state_dim, action_dim, n_agents, env_name, config['data_dir'], pref_dir, segment_length, device=config['device'])
+    pref_dataset = PrefDataset(state_dim, action_dim, n_agents, env_name, config['data_dir'], pref_dir, segment_length, config, device=config['device'])
     # offline_dataset.load() process datas to single-step (s,a,s')
     offline_dataset.load()
     pref_dataset.load()
