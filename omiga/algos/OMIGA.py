@@ -8,7 +8,7 @@ from networks.network import Actor, V_critic, Q_critic, MixNet
 
 class OMIGA(object):
     def __init__(self, observation_spec, action_spec, num_agent, eval_env, config):
-        self._alpha = 10 # 1 for mediumquality dataset of the HalfCheetah task
+        self._alpha = config['alpha'] # 1 for medium quality dataset of the HalfCheetah task
         self._gamma = config['gamma']
         self._tau = config['tau']
         self._hidden_sizes = config['hidden_sizes']
@@ -86,7 +86,11 @@ class OMIGA(object):
         })
         return result
     
-    def train_step(self, o, s, a, r, mask, s_next, o_next, a_next):
+    def train_step(self, offline_batch):
+        # decoding data
+        o, s, a, r, mask, s_next, o_next, a_next = [offline_batch['obs'], offline_batch['state'], offline_batch['action'],
+                                                    offline_batch['reward'], offline_batch['mask'], offline_batch['state_next'],
+                                                    offline_batch['obs_next'], offline_batch['action_next']]
         # Shared network values
         one_hot_agent_id = torch.eye(self._num_agent).expand(o.shape[0], -1, -1).to(self._device)
         o_with_id = torch.cat((o, one_hot_agent_id), dim=-1)
