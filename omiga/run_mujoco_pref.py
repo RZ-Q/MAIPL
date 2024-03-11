@@ -57,9 +57,8 @@ def run(config):
     assert config['env_name'] == 'mujoco', "Invalid environment"
     env_name = config['scenario'] + '-' + config['agent_conf'] + '-' + config['data_type']
     exp_name = "OMIGA"
-    name = config['algo'] + '-' + str(config["batch_size"]) + '-' + str(config["pref_batch_size"]) + '-' + str(config["alpha"]) + \
-        '-' + "usevt" + str(config["v_target"]) + '-' + 'test_s' + str(config['seed'])
-    group_name = config['algo'] + '-' + str(config["batch_size"]) + '-' + str(config["pref_batch_size"]) + '-' + str(config["alpha"]) + \
+    name = 'test_s' + str(config['seed'])
+    group_name = env_name + '-' + config['algo'] + '-' + str(config["batch_size"]) + '-' + str(config["pref_batch_size"]) + '-' + str(config["alpha"]) + \
         '-' + "usevt" + str(config["v_target"])
 
     if config['wandb'] == True:
