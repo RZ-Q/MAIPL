@@ -10,6 +10,8 @@ from datasets.offline_dataset import ReplayBuffer
 from datasets.preference_dataset import PrefDataset
 # from algos.OMIGA import OMIGA
 from algos.MAIPL_OMIGA import MAIPL_OMIGA
+from algos.PbRL_OMIGA import PbRL_OMIGA
+from algos.MACPL_OMIGA import MACPL_OMIGA
 
 import wandb
 from tqdm import tqdm
@@ -59,7 +61,7 @@ def run(config):
     exp_name = "OMIGA"
     name = 'test_s' + str(config['seed'])
     group_name = env_name + '-' + config['algo'] + '-' + str(config["batch_size"]) + '-' + str(config["pref_batch_size"]) + '-' + str(config["alpha"]) + \
-        '-' + "usevt" + str(config["v_target"])
+        '-' + "usevt" + str(config["v_target"]) + '-' + 'onlyp' + str(config["use_pref_only"])
 
     if config['wandb'] == True:
         wandb.init(project=exp_name, name=name, group=group_name)
@@ -113,7 +115,9 @@ def run(config):
         return train_result
      
     # Agent
-    agent = MAIPL_OMIGA(state_dim, action_dim, n_agents, eval_env, config)
+    # agent = MAIPL_OMIGA(state_dim, action_dim, n_agents, eval_env, config)
+    # agent = PbRL_OMIGA(state_dim, action_dim, n_agents, eval_env, config)
+    agent = MACPL_OMIGA(state_dim, action_dim, n_agents, eval_env, config)
 
     # Train
     print('\n==========Start training==========')
@@ -121,7 +125,7 @@ def run(config):
     for iteration in tqdm(range(0, config['total_iterations']), ncols=70, desc=config['algo'], initial=1, total=config['total_iterations'], ascii=True, disable=os.environ.get("DISABLE_TQDM", False)):
         offline_batch = offline_dataset.sample(config['batch_size'])
         pref_batch = pref_dataset.sample(config['pref_batch_size'])
-        train_result = agent.train_step(offline_batch, pref_batch)
+        train_result = agent.train_step(offline_batch, pref_batch, iteration)
         if iteration % config['log_iterations'] == 0:
             train_result = _eval_and_log(train_result, config)
             if config['wandb'] == True:

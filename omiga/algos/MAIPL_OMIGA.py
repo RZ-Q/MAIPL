@@ -70,6 +70,7 @@ class MAIPL_OMIGA(object):
         # self._value_replay_weight = None
         # self._policy_replay_weight = None
         self._v_target = config["v_target"]
+        self._use_pref_only = config["use_pref_only"]
 
     def q_loss(self, labels, o_with_a_id, s, o_next_with_id, s_next, mask, split, B_p, S_p, result={}):
         # TODO: double Q ablation (OMIGA only use one Q)
@@ -236,11 +237,16 @@ class MAIPL_OMIGA(object):
 
         return obs, state, action, mask, next_obs, next_state, split, B_total, B_p, S_p
 
-    def train_step(self, offline_batch=None, pref_batch=None):
+    def train_step(self, offline_batch=None, pref_batch=None, step=0):
         # decode and cat batch datas
-        obs, state, action, mask, next_obs, next_state, split, B_total, B_p, S_p = (
-            self.decode_and_cat_batch(offline_batch, pref_batch)
-        )
+        if self._use_pref_only:
+            obs, state, action, mask, next_obs, next_state, split, B_total, B_p, S_p = (
+                self.decode_and_cat_batch(offline_batch=None, pref_batch=pref_batch)
+            )
+        else:
+            obs, state, action, mask, next_obs, next_state, split, B_total, B_p, S_p = (
+                self.decode_and_cat_batch(offline_batch, pref_batch)
+            )
         labels = pref_batch["labels"].squeeze(-1).float()
 
         # Shared network values

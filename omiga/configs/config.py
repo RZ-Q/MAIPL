@@ -48,5 +48,8 @@ def get_parser():
     parser.add_argument('--value_replay_weight', default=0.5, type=float)
     parser.add_argument('--policy_replay_weight', default=0.5, type=float)
     parser.add_argument('--v_target', default=True, type=boolean)
+    parser.add_argument('--use_pref_only', default=True, type=boolean)
+    parser.add_argument('--reward_steps', default=1000000, type=int)
+    parser.add_argument('--reward_lr', default=3e-4, type=float)
 
     return parser

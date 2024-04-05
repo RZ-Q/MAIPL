@@ -101,6 +101,8 @@ class PrefDataset(object):
             'action2': torch.FloatTensor(self.a2[ind]).to(self.device),
             'mask2': torch.FloatTensor(self.mask2[ind]).to(self.device),
             'labels': torch.FloatTensor(self.labels[ind]).to(self.device),
+            'r1': torch.FloatTensor(self.r1[ind]).to(self.device),
+            'r2': torch.FloatTensor(self.r2[ind]).to(self.device),
             }
         else:
             # Note: subsample sequences currently do not support arbitrary obs/action spaces.
@@ -116,4 +118,6 @@ class PrefDataset(object):
             'action2': torch.FloatTensor(self.a2[ind, start:end]).to(self.device),
             'mask2': torch.FloatTensor(self.mask2[ind, start:end]).to(self.device),
             'labels': torch.FloatTensor(self.labels[ind]).to(self.device),
+            'r1': torch.FloatTensor(self.r1[ind, start:end]).to(self.device),
+            'r2': torch.FloatTensor(self.r2[ind, start:end]).to(self.device),
             }

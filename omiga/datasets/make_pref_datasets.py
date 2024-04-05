@@ -46,7 +46,7 @@ def make_pref_index(num_feedbacks, segment_length, file_dir, env_name):
 if __name__ == "__main__":
     # TODO: currently use random sample, after add uncertainty sample methods
     file_dir = "/data/user/kouqian/files/MAOfflineDatasets/MA-Mujoco/"
-    env_name = "Hopper-v2-3x1-medium"
+    env_name = "HalfCheetah-v2-6x1-medium"
     num_feedbacks = 30000
     segment_length = 100
     make_pref_index(num_feedbacks, segment_length, file_dir, env_name)
