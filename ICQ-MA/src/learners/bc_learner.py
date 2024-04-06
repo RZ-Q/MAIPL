@@ -20,7 +20,7 @@ class BCLearner:
         self.log_stats_t = -self.args.learner_log_interval - 1
 
 
-    def train(self, batch: EpisodeBatch, t_env: int):
+    def train(self, batch, t_env):
         # Get the relevant quantities
         bs = batch['batch_size']
         actions = batch["actions"][:, :-1]

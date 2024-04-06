@@ -146,30 +146,82 @@ def run_sequential(args, logger):
             "q_min_var": []
         }
 
-        # # --------------------------- sample for ICQ,BC,OMIGA -------------------------------
-        sample_number = np.random.choice(len(pref_dataset['action']), args.off_batch_size, replace=False)
-        filled_sample = pref_dataset['filled'][sample_number]
-        max_ep_t_h = filled_sample.sum(1).max(0)[0]
-        filled_sample = filled_sample[:, :max_ep_t_h]
-        actions_sample = pref_dataset['action'][sample_number][:, :max_ep_t_h]
-        actions_onehot_sample = th.nn.functional.one_hot(actions_sample, num_classes=args.n_actions).squeeze(-2)
-        avail_actions_sample = pref_dataset['avail_action'][sample_number][:, :max_ep_t_h]
-        obs_sample = pref_dataset['obs'][sample_number][:, :max_ep_t_h]
-        reward_sample = pref_dataset['reward'][sample_number][:, :max_ep_t_h]
-        state_sample = pref_dataset['state'][sample_number][:, :max_ep_t_h, 0]
-        terminated_sample = pref_dataset['terminated'][sample_number][:, :max_ep_t_h]
+        if not args.use_pref:
+            # # --------------------------- sample for ICQ,BC,OMIGA -------------------------------
+            sample_number = np.random.choice(len(pref_dataset['action']), args.off_batch_size, replace=False)
+            filled_sample = pref_dataset['filled'][sample_number]
+            max_ep_t_h = filled_sample.sum(1).max(0)[0]
+            filled_sample = filled_sample[:, :max_ep_t_h]
+            actions_sample = pref_dataset['action'][sample_number][:, :max_ep_t_h]
+            actions_onehot_sample = th.nn.functional.one_hot(actions_sample, num_classes=args.n_actions).squeeze(-2)
+            avail_actions_sample = pref_dataset['avail_action'][sample_number][:, :max_ep_t_h]
+            obs_sample = pref_dataset['obs'][sample_number][:, :max_ep_t_h]
+            reward_sample = pref_dataset['reward'][sample_number][:, :max_ep_t_h]
+            state_sample = pref_dataset['state'][sample_number][:, :max_ep_t_h, 0]
+            terminated_sample = pref_dataset['terminated'][sample_number][:, :max_ep_t_h]
 
-        off_batch = {}
-        off_batch['obs'] = obs_sample.to(args.device)
-        off_batch['reward'] = reward_sample.to(args.device)
-        off_batch['actions'] = actions_sample.to(args.device)
-        off_batch['actions_onehot'] = actions_onehot_sample.to(args.device)
-        off_batch['avail_actions'] = avail_actions_sample.to(args.device)
-        off_batch['filled'] = filled_sample.to(args.device)
-        off_batch['state'] = state_sample.to(args.device)
-        off_batch['terminated'] = terminated_sample.to(args.device)
-        off_batch['max_seq_length'] = max_ep_t_h.to(args.device)
-        off_batch['batch_size'] = args.off_batch_size
+            off_batch = {}
+            off_batch['obs'] = obs_sample.to(args.device)
+            off_batch['reward'] = reward_sample.to(args.device)
+            off_batch['actions'] = actions_sample.to(args.device)
+            off_batch['actions_onehot'] = actions_onehot_sample.to(args.device)
+            off_batch['avail_actions'] = avail_actions_sample.to(args.device)
+            off_batch['filled'] = filled_sample.to(args.device)
+            off_batch['state'] = state_sample.to(args.device)
+            off_batch['terminated'] = terminated_sample.to(args.device)
+            off_batch['max_seq_length'] = max_ep_t_h.to(args.device)
+            off_batch['batch_size'] = args.off_batch_size
+        
+        else:
+            # # --------------------------- sample for pref method -------------------------------
+            sample_number0 = np.random.choice(int(len(pref_dataset['action']) / 2), int(args.off_batch_size / 2), replace=False)
+            sample_number1 = sample_number0 + int(len(pref_dataset['action']) / 2)
+
+            filled_sample = pref_dataset['filled'][sample_number0]
+            max_ep_t_h = filled_sample.sum(1).max(0)[0]
+            filled_sample = filled_sample[:, :max_ep_t_h]
+            actions_sample = pref_dataset['action'][sample_number0][:, :max_ep_t_h]
+            actions_onehot_sample = th.nn.functional.one_hot(actions_sample, num_classes=args.n_actions).squeeze(-2)
+            avail_actions_sample = pref_dataset['avail_action'][sample_number0][:, :max_ep_t_h]
+            obs_sample = pref_dataset['obs'][sample_number0][:, :max_ep_t_h]
+            reward_sample = pref_dataset['reward'][sample_number0][:, :max_ep_t_h]
+            state_sample = pref_dataset['state'][sample_number0][:, :max_ep_t_h, 0]
+            terminated_sample = pref_dataset['terminated'][sample_number0][:, :max_ep_t_h]
+
+            off_batch0 = {}
+            off_batch0['obs'] = obs_sample.to(args.device)
+            off_batch0['reward'] = reward_sample.to(args.device)
+            off_batch0['actions'] = actions_sample.to(args.device)
+            off_batch0['actions_onehot'] = actions_onehot_sample.to(args.device)
+            off_batch0['avail_actions'] = avail_actions_sample.to(args.device)
+            off_batch0['filled'] = filled_sample.to(args.device)
+            off_batch0['state'] = state_sample.to(args.device)
+            off_batch0['terminated'] = terminated_sample.to(args.device)
+            off_batch0['max_seq_length'] = max_ep_t_h.to(args.device)
+            off_batch0['batch_size'] = args.off_batch_size
+
+            filled_sample = pref_dataset['filled'][sample_number1]
+            max_ep_t_h = filled_sample.sum(1).max(0)[0]
+            filled_sample = filled_sample[:, :max_ep_t_h]
+            actions_sample = pref_dataset['action'][sample_number1][:, :max_ep_t_h]
+            actions_onehot_sample = th.nn.functional.one_hot(actions_sample, num_classes=args.n_actions).squeeze(-2)
+            avail_actions_sample = pref_dataset['avail_action'][sample_number1][:, :max_ep_t_h]
+            obs_sample = pref_dataset['obs'][sample_number1][:, :max_ep_t_h]
+            reward_sample = pref_dataset['reward'][sample_number1][:, :max_ep_t_h]
+            state_sample = pref_dataset['state'][sample_number1][:, :max_ep_t_h, 0]
+            terminated_sample = pref_dataset['terminated'][sample_number1][:, :max_ep_t_h]
+
+            off_batch1 = {}
+            off_batch1['obs'] = obs_sample.to(args.device)
+            off_batch1['reward'] = reward_sample.to(args.device)
+            off_batch1['actions'] = actions_sample.to(args.device)
+            off_batch1['actions_onehot'] = actions_onehot_sample.to(args.device)
+            off_batch1['avail_actions'] = avail_actions_sample.to(args.device)
+            off_batch1['filled'] = filled_sample.to(args.device)
+            off_batch1['state'] = state_sample.to(args.device)
+            off_batch1['terminated'] = terminated_sample.to(args.device)
+            off_batch1['max_seq_length'] = max_ep_t_h.to(args.device)
+            off_batch1['batch_size'] = args.off_batch_size
 
         # --------------------- ICQ-MA --------------------------------
         if args.name == "ICQ-MA":
@@ -178,6 +230,9 @@ def run_sequential(args, logger):
         # --------------------- BC --------------------------------
         elif args.name == "BC":
             learner.train(off_batch, runner.t_env)
+        # --------------------- CPL --------------------------------
+        elif args.name == "CPL":
+            learner.train(off_batch0, off_batch1, runner.t_env, pref_dataset['labels'])
         
         n_test_runs = max(1, args.test_nepisode // runner.batch_size)
         if (runner.t_env - last_test_T) / args.test_interval >= 1.0: # args.test_interval
