@@ -52,7 +52,7 @@ class GRNNAgent(nn.Module):
         index_inter = nf_al
         self.index_pos = th.LongTensor(
             [index_start + 1 + index_inter * agent_i for agent_i in range(args.n_agents - 1)]).unsqueeze(0).unsqueeze(0)
-        if self.args.device is 'cuda':
+        if self.args.device == 'cuda':
             self.index_pos = self.index_pos.cuda()
 
         self.comm_fact = 1.

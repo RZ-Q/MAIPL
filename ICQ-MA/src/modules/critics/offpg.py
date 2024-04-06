@@ -32,7 +32,7 @@ class OffPGCritic(nn.Module):
         inputs = []
         inputs.append(batch["state"][:].unsqueeze(2).repeat(1, 1, self.n_agents, 1))
         inputs.append(batch["obs"][:])
-        inputs.append(th.eye(self.n_agents).unsqueeze(0).unsqueeze(0).expand(bs, max_t, -1, -1))
+        inputs.append(th.eye(self.n_agents).unsqueeze(0).unsqueeze(0).expand(bs, max_t, -1, -1).to(self.args.device))
         inputs = th.cat([x.reshape(bs, max_t, self.n_agents, -1) for x in inputs], dim=-1)
         return inputs
 

@@ -18,6 +18,7 @@ from controllers import REGISTRY as mac_REGISTRY
 from components.episode_buffer import ReplayBuffer, Best_experience_Buffer
 from components.transforms import OneHot
 import datetime
+import wandb
 
 
 def run(_run, _config, _log):
@@ -36,7 +37,8 @@ def run(_run, _config, _log):
                                        width=1)
     _log.info("\n\n" + experiment_params + "\n")
 
-    unique_token = "{}__{}".format(args.name, datetime.datetime.now().strftime("%Y-%m-%d_%H-%M-%S"))
+    # unique_token = "{}__{}".format(args.name, datetime.datetime.now().strftime("%Y-%m-%d_%H-%M-%S"))
+    unique_token = args.name + '-' + args.env_args['map_name']+ '-' + str(args.pref_segment_pairs) + '-' + args.offline_dataset_quality + '-' + str(args.seed)
     args.unique_token = unique_token
     if args.use_tensorboard:
         tb_logs_direc = os.path.join(dirname(dirname(abspath(__file__))), "results", "tb_logs")
@@ -75,6 +77,7 @@ def run_sequential(args, logger):
     env_info = runner.get_env_info()
     args.n_agents = env_info["n_agents"]
     args.n_actions = env_info["n_actions"]
+    args.obs_shape = env_info["obs_shape"]
     args.state_shape = env_info["state_shape"]
     scheme = {
         "state": {"vshape": env_info["state_shape"]},
@@ -109,17 +112,20 @@ def run_sequential(args, logger):
     logger.console_logger.info("Beginning training for {} timesteps".format(args.t_max))    
     episode_num = 0
     
-    # --------------------------- hdf5 -------------------------------
-    import h5py
-    hdFile_r = h5py.File(args.env_args['map_name'] + '.h5', 'r')
-    actions_h = th.tensor(hdFile_r.get('actions'))
-    actions_onehot_h = th.tensor(hdFile_r.get('actions_onehot'))
-    avail_actions_h = th.tensor(hdFile_r.get('avail_actions'))
-    filled_h = th.tensor(hdFile_r.get('filled'))
-    obs_h = th.tensor(hdFile_r.get('obs'))
-    reward_h = th.tensor(hdFile_r.get('reward'))
-    state_h = th.tensor(hdFile_r.get('state'))
-    terminated_h = th.tensor(hdFile_r.get('terminated'))
+    # # --------------------------- hdf5 -------------------------------
+    # import h5py
+    # hdFile_r = h5py.File(args.offline_dataset_dir, 'r')
+    # actions_h = th.tensor(hdFile_r.get('actions'))
+    # actions_onehot_h = th.tensor(hdFile_r.get('actions_onehot'))
+    # avail_actions_h = th.tensor(hdFile_r.get('avail_actions'))
+    # filled_h = th.tensor(hdFile_r.get('filled'))
+    # obs_h = th.tensor(hdFile_r.get('obs'))
+    # reward_h = th.tensor(hdFile_r.get('reward'))
+    # state_h = th.tensor(hdFile_r.get('state'))
+    # terminated_h = th.tensor(hdFile_r.get('terminated'))
+
+    # # -------------------------- load pref dataset -----------------
+    pref_dataset = th.load(args.offline_dataset_dir)
 
     # ----------------------------train-------------------------------
     while runner.t_env <= args.t_max:
@@ -140,34 +146,39 @@ def run_sequential(args, logger):
             "q_min_var": []
         }
 
-        sample_number = np.random.choice(len(actions_h), 32, replace=False)
-        filled_sample = filled_h[sample_number]
+        # # --------------------------- sample for ICQ,BC,OMIGA -------------------------------
+        sample_number = np.random.choice(len(pref_dataset['action']), args.off_batch_size, replace=False)
+        filled_sample = pref_dataset['filled'][sample_number]
         max_ep_t_h = filled_sample.sum(1).max(0)[0]
         filled_sample = filled_sample[:, :max_ep_t_h]
-        actions_sample = actions_h[sample_number][:, :max_ep_t_h]
-        actions_onehot_sample = actions_onehot_h[sample_number][:, :max_ep_t_h]
-        avail_actions_sample = avail_actions_h[sample_number][:, :max_ep_t_h]
-        obs_sample = obs_h[sample_number][:, :max_ep_t_h]
-        reward_sample = reward_h[sample_number][:, :max_ep_t_h]
-        state_sample = state_h[sample_number][:, :max_ep_t_h]
-        terminated_sample = terminated_h[sample_number][:, :max_ep_t_h]
+        actions_sample = pref_dataset['action'][sample_number][:, :max_ep_t_h]
+        actions_onehot_sample = th.nn.functional.one_hot(actions_sample, num_classes=args.n_actions).squeeze(-2)
+        avail_actions_sample = pref_dataset['avail_action'][sample_number][:, :max_ep_t_h]
+        obs_sample = pref_dataset['obs'][sample_number][:, :max_ep_t_h]
+        reward_sample = pref_dataset['reward'][sample_number][:, :max_ep_t_h]
+        state_sample = pref_dataset['state'][sample_number][:, :max_ep_t_h, 0]
+        terminated_sample = pref_dataset['terminated'][sample_number][:, :max_ep_t_h]
 
         off_batch = {}
-        off_batch['obs'] = obs_sample
-        off_batch['reward'] = reward_sample
-        off_batch['actions'] = actions_sample
-        off_batch['actions_onehot'] = actions_onehot_sample
-        off_batch['avail_actions'] = avail_actions_sample
-        off_batch['filled'] = filled_sample
-        off_batch['state'] = state_sample
-        off_batch['terminated'] = terminated_sample
-        off_batch['batch_size'] = 32
-        off_batch['max_seq_length'] = max_ep_t_h
+        off_batch['obs'] = obs_sample.to(args.device)
+        off_batch['reward'] = reward_sample.to(args.device)
+        off_batch['actions'] = actions_sample.to(args.device)
+        off_batch['actions_onehot'] = actions_onehot_sample.to(args.device)
+        off_batch['avail_actions'] = avail_actions_sample.to(args.device)
+        off_batch['filled'] = filled_sample.to(args.device)
+        off_batch['state'] = state_sample.to(args.device)
+        off_batch['terminated'] = terminated_sample.to(args.device)
+        off_batch['max_seq_length'] = max_ep_t_h.to(args.device)
+        off_batch['batch_size'] = args.off_batch_size
 
         # --------------------- ICQ-MA --------------------------------
-        learner.train_critic(off_batch, best_batch=None, log=running_log, t_env=runner.t_env)
-        learner.train(off_batch, runner.t_env, running_log)
-
+        if args.name == "ICQ-MA":
+            learner.train_critic(off_batch, best_batch=None, log=running_log, t_env=runner.t_env)
+            learner.train(off_batch, runner.t_env, running_log)
+        # --------------------- BC --------------------------------
+        elif args.name == "BC":
+            learner.train(off_batch, runner.t_env)
+        
         n_test_runs = max(1, args.test_nepisode // runner.batch_size)
         if (runner.t_env - last_test_T) / args.test_interval >= 1.0: # args.test_interval
 

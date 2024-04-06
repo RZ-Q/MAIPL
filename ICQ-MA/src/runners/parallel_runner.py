@@ -5,6 +5,7 @@ from multiprocessing import Pipe, Process
 import numpy as np
 import torch as th
 import datetime
+import wandb
 
 
 # Based (very) heavily on SubprocVecEnv from OpenAI Baselines

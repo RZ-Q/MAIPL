@@ -6,10 +6,6 @@ def build_td_lambda_targets(rewards, terminated, mask, target_qs, n_agents, gamm
     # Initialise  last  lambda -return  for  not  terminated  episodes
     ret = target_qs.new_zeros(*target_qs.shape)
     ret[:, -1] = target_qs[:, -1] * (1 - th.sum(terminated, dim=1))
-    # ---------------------------
-    td_lambda = 0.75
-    gamma = 0.99
-    # ---------------------------
     # Backwards  recursive  update  of the "forward  view"
     for t in range(ret.shape[1] - 2, -1,  -1):
         ret[:, t] = td_lambda * gamma * ret[:, t + 1] + mask[:, t] \

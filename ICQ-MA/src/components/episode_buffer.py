@@ -72,7 +72,7 @@ class EpisodeBatch_Runner:
             if episode_const:
                 self.data.episode_data[field_key] = th.zeros((batch_size, *shape), dtype=dtype, device=self.device)
             else:
-                if field_key is 'policy':
+                if field_key == 'policy':
                     self.data.transition_data[field_key] = th.ones((batch_size, max_seq_length, *shape), dtype=dtype, device=self.device)
                 else:
                     self.data.transition_data[field_key] = th.zeros((batch_size, max_seq_length, *shape), dtype=dtype, device=self.device)
@@ -103,7 +103,12 @@ class EpisodeBatch_Runner:
                 raise KeyError("{} not found in transition or episode data".format(k))
 
             dtype = self.scheme[k].get("dtype", th.float32)
-            v = th.tensor(v, dtype=dtype, device=self.device)
+            # v = th.tensor(v, dtype=dtype, device=self.device)
+            if isinstance(v, list):
+                v = np.array(v)
+                v = th.tensor(v, dtype=dtype, device=self.device)
+            elif isinstance(v, th.Tensor):
+                v = th.as_tensor(v, dtype=dtype, device=self.device)
             self._check_safe_view(v, target[k][_slices])
             target[k][_slices] = v.view_as(target[k][_slices])
             if k in self.preprocess:
@@ -275,7 +280,7 @@ class EpisodeBatch:
             if episode_const:
                 self.data.episode_data[field_key] = th.zeros((batch_size, *shape), dtype=dtype, device=self.device)
             else:
-                if field_key is 'policy':
+                if field_key == 'policy':
                     self.data.transition_data[field_key] = th.ones((batch_size, max_seq_length, *shape), dtype=dtype, device=self.device)
                 else:
                     self.data.transition_data[field_key] = th.zeros((batch_size, max_seq_length, *shape), dtype=dtype, device=self.device)

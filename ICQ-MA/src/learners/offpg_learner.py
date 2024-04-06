@@ -9,7 +9,7 @@ from torch.optim import RMSprop
 from modules.mixers.qmix import QMixer
 import torch.nn.functional as F
 import numpy as np
-
+import wandb
 
 class OffPGLearner:
     def __init__(self, mac, scheme, logger, args):
@@ -18,6 +18,8 @@ class OffPGLearner:
         self.n_actions = args.n_actions
         self.mac = mac
         self.logger = logger
+        self.icq_alpha = args.icq_alpha
+        self.icq_beta = args.icq_beta
 
         self.last_target_update_step = 0
         self.critic_training_steps = 0
@@ -64,7 +66,7 @@ class OffPGLearner:
         mac_out = th.stack(mac_out, dim=1)
 
         mac_out[avail_actions == 0] = 0
-        mac_out = mac_out/mac_out.sum(dim=-1, keepdim=True)
+        mac_out = mac_out/mac_out.sum(dim=-1, keepdim=True)  # 一般不是softmax吗？
         mac_out[avail_actions == 0] = 0
 
         q_taken = th.gather(q_vals, dim=3, index=actions).squeeze(3).view(bs, -1, self.n_agents)
@@ -80,8 +82,7 @@ class OffPGLearner:
         coe = self.mixer.k(states).view(bs, -1, self.n_agents)
 
         advantages = (q_taken - baseline)
-        beta = 0.1
-        advantages = F.softmax(advantages / beta, dim=0)
+        advantages = F.softmax(advantages / self.icq_alpha, dim=0)
 
         coma_loss = - (coe * (len(advantages) * advantages.detach() * log_pi_taken) * mask_td).sum() / mask_td.sum()
 
@@ -120,8 +121,7 @@ class OffPGLearner:
         # -----------------------------Q_lambda-IS-----------------------
         target_q_taken = th.gather(target_q_vals, dim=3, index=actions).squeeze(3)
         target_q_vals_IS = self.target_mixer(target_q_taken, states) 
-        beta = 1000
-        advantage_Q = F.softmax(target_q_vals_IS / beta, dim=0)
+        advantage_Q = F.softmax(target_q_vals_IS / self.icq_beta, dim=0)
         targets_taken = self.target_mixer(th.gather(target_q_vals, dim=3, index=actions).squeeze(3), states)
         targets_taken = len(advantage_Q) * advantage_Q * targets_taken
         # -----------------------------Q_lambda-IS-----------------------
@@ -183,8 +183,8 @@ class OffPGLearner:
         if t_env - self.log_stats_t >= self.args.learner_log_interval:
             self.logger.log_stat("critic_loss", critic_loss.item(), t_env)
             self.logger.log_stat("q_taken_mean", (q_vals * mask_t).sum().item() / mask_elems, t_env)
-            self.logger.log_stat("beta_q", beta, t_env)
-            self.log_stats_t = t_env
+            self.logger.log_stat("beta_q", self.icq_beta, t_env)
+            # self.log_stats_t = t_env
 
     def _update_targets(self):
         self.target_critic.load_state_dict(self.critic.state_dict())
