@@ -157,7 +157,7 @@ def run_sequential(args, logger):
             avail_actions_sample = pref_dataset['avail_action'][sample_number][:, :max_ep_t_h]
             obs_sample = pref_dataset['obs'][sample_number][:, :max_ep_t_h]
             reward_sample = pref_dataset['reward'][sample_number][:, :max_ep_t_h]
-            state_sample = pref_dataset['state'][sample_number][:, :max_ep_t_h, 0]
+            state_sample = pref_dataset['state'][sample_number][:, :max_ep_t_h]
             terminated_sample = pref_dataset['terminated'][sample_number][:, :max_ep_t_h]
 
             off_batch = {}
@@ -185,7 +185,7 @@ def run_sequential(args, logger):
             avail_actions_sample = pref_dataset['avail_action'][sample_number0][:, :max_ep_t_h]
             obs_sample = pref_dataset['obs'][sample_number0][:, :max_ep_t_h]
             reward_sample = pref_dataset['reward'][sample_number0][:, :max_ep_t_h]
-            state_sample = pref_dataset['state'][sample_number0][:, :max_ep_t_h, 0]
+            state_sample = pref_dataset['state'][sample_number0][:, :max_ep_t_h]
             terminated_sample = pref_dataset['terminated'][sample_number0][:, :max_ep_t_h]
 
             off_batch0 = {}
@@ -198,7 +198,7 @@ def run_sequential(args, logger):
             off_batch0['state'] = state_sample.to(args.device)
             off_batch0['terminated'] = terminated_sample.to(args.device)
             off_batch0['max_seq_length'] = max_ep_t_h.to(args.device)
-            off_batch0['batch_size'] = args.off_batch_size
+            off_batch0['batch_size'] = int(args.off_batch_size / 2)
 
             filled_sample = pref_dataset['filled'][sample_number1]
             max_ep_t_h = filled_sample.sum(1).max(0)[0]
@@ -221,7 +221,7 @@ def run_sequential(args, logger):
             off_batch1['state'] = state_sample.to(args.device)
             off_batch1['terminated'] = terminated_sample.to(args.device)
             off_batch1['max_seq_length'] = max_ep_t_h.to(args.device)
-            off_batch1['batch_size'] = args.off_batch_size
+            off_batch1['batch_size'] = int(args.off_batch_size / 2)
 
         # --------------------- ICQ-MA --------------------------------
         if args.name == "ICQ-MA":
@@ -232,7 +232,7 @@ def run_sequential(args, logger):
             learner.train(off_batch, runner.t_env)
         # --------------------- CPL --------------------------------
         elif args.name == "CPL":
-            learner.train(off_batch0, off_batch1, runner.t_env, pref_dataset['labels'])
+            learner.train(off_batch0, off_batch1, runner.t_env, pref_dataset['labels'][sample_number0])
         
         n_test_runs = max(1, args.test_nepisode // runner.batch_size)
         if (runner.t_env - last_test_T) / args.test_interval >= 1.0: # args.test_interval

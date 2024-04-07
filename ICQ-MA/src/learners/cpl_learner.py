@@ -34,10 +34,10 @@ class CPLLearner:
         terminated0 = batch0["terminated"][:, :-1].float()
         avail_actions0 = batch0["avail_actions"][:, :-1].long()
 
-        mask0 = batch0["filled"][:, :-1].float()
-        mask0[:, 1:] = mask0[:, 1:] * (1 - terminated0[:, :-1])
-        mask_td0 = mask0.repeat(1, 1, self.n_agents).view(bs, -1, self.n_agents)
-        mask0 = mask0.repeat(1, 1, self.n_agents).view(-1)
+        # mask0 = batch0["filled"][:, :-1].float()
+        # mask0[:, 1:] = mask0[:, 1:] * (1 - terminated0[:, :-1])
+        mask0 = (actions0.sum(-2) != 0) * 1.0
+
 
         # Calculate estimated Q-Values
         mac_out0 = []
@@ -50,23 +50,19 @@ class CPLLearner:
         mac_out0[avail_actions0 == 0] = 0
         mac_out0 = mac_out0/mac_out0.sum(dim=-1, keepdim=True)
         mac_out0[avail_actions0 == 0] = 0
-        #mac_out = F.softmax(mac_out, dim=-1) # get softmax policy
 
-        pi0 = mac_out0.view(-1, self.n_actions)
-        pi_taken0 = th.gather(pi0, dim=1, index=actions0.reshape(-1, 1)).squeeze(1)
-        pi_taken0[mask0 == 0] = 1.0
-        log_pi_taken0 = th.log(pi_taken0)
-        log_pi_taken0 = log_pi_taken0.view(bs, -1, self.n_agents).sum(-1)
+        pi_taken0 = th.gather(mac_out0, dim=-1, index=actions0)
+        pi_taken0[mask0.repeat(1, 1, self.n_agents).unsqueeze(-1) == 0] = 1.0
+        log_pi_taken0 = th.log(pi_taken0).squeeze(-1).sum(-1)
 
         # # ----------- batch1 not preferred -----------------
         actions1 = batch1["actions"][:, :-1]
         terminated1 = batch1["terminated"][:, :-1].float()
         avail_actions1 = batch1["avail_actions"][:, :-1].long()
 
-        mask1 = batch1["filled"][:, :-1].float()
-        mask1[:, 1:] = mask1[:, 1:] * (1 - terminated1[:, :-1])
-        mask_td1 = mask1.repeat(1, 1, self.n_agents).view(bs, -1, self.n_agents)
-        mask1 = mask1.repeat(1, 1, self.n_agents).view(-1)
+        # mask1 = batch1["filled"][:, :-1].float()
+        # mask1[:, 1:] = mask1[:, 1:] * (1 - terminated1[:, :-1])
+        mask1 = (actions0.sum(-2) != 0) * 1.0
 
         # Calculate estimated Q-Values
         mac_out1 = []
@@ -79,24 +75,21 @@ class CPLLearner:
         mac_out1[avail_actions1 == 0] = 0
         mac_out1 = mac_out1/mac_out1.sum(dim=-1, keepdim=True)
         mac_out1[avail_actions1 == 0] = 0
-        #mac_out = F.softmax(mac_out, dim=-1) # get softmax policy
 
-        pi1 = mac_out1.view(-1, self.n_actions)
-        pi_taken1 = th.gather(pi1, dim=1, index=actions1.reshape(-1, 1)).squeeze(1)
-        pi_taken1[mask1 == 0] = 1.0
-        log_pi_taken1 = th.log(pi_taken1)
-        log_pi_taken1 = log_pi_taken1.view(bs, -1, self.n_agents).sum(-1)
+        pi_taken1 = th.gather(mac_out1, dim=-1, index=actions1)
+        pi_taken1[mask1.repeat(1, 1, self.n_agents).unsqueeze(-1) == 0] = 1.0
+        log_pi_taken1 = th.log(pi_taken1).squeeze(-1).sum(-1)
 
         # # ------------- CPL loss ------------------
-        adv0 = (self.cpl_alpha * log_pi_taken0 * mask0).sum(1)
-        adv1 = (self.cpl_alpha * log_pi_taken1 * mask1).sum(1)
+        adv0 = (self.cpl_alpha * log_pi_taken0 * mask0.squeeze(-1)).sum(1)
+        adv1 = (self.cpl_alpha * log_pi_taken1 * mask1.squeeze(-1)).sum(1)
         logit10 = adv1 - self.cpl_lambda * adv0
         logit01 = adv0 - self.cpl_lambda * adv1
         max21 = th.clamp(-logit10, min=0, max=None)
         max12 = th.clamp(-logit01, min=0, max=None)
         nlp21 = th.log(th.exp(-max21) + th.exp(-logit10 - max21)) + max21
         nlp12 = th.log(th.exp(-max12) + th.exp(-logit01 - max12)) + max12
-        loss = labels * nlp21 + (1 - labels) * nlp12
+        loss = labels.squeeze(-1) * nlp21 + (1 - labels.squeeze(-1)) * nlp12
         loss = loss.mean()
 
         self.agent_optimiser.zero_grad()

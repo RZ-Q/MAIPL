@@ -27,10 +27,11 @@ class BCLearner:
         terminated = batch["terminated"][:, :-1].float()
         avail_actions = batch["avail_actions"][:, :-1].long()
 
-        mask = batch["filled"][:, :-1].float()
-        mask[:, 1:] = mask[:, 1:] * (1 - terminated[:, :-1])
-        mask_td = mask.repeat(1, 1, self.n_agents).view(bs, -1, self.n_agents)
-        mask = mask.repeat(1, 1, self.n_agents).view(-1)
+        mask = (actions.sum(-2) != 0) * 1.0
+        # mask = batch["filled"][:, :-1].float()
+        # mask[:, 1:] = mask[:, 1:] * (1 - terminated[:, :-1])
+        mask_td = mask.repeat(1, 1, self.n_agents).unsqueeze(-1)
+        # mask = mask.repeat(1, 1, self.n_agents).view(-1)
 
         # Calculate estimated Q-Values
         mac_out = []
@@ -45,12 +46,11 @@ class BCLearner:
         mac_out[avail_actions == 0] = 0
         #mac_out = F.softmax(mac_out, dim=-1) # get softmax policy
 
-        pi = mac_out.view(-1, self.n_actions)
-        pi_taken = th.gather(pi, dim=1, index=actions.reshape(-1, 1)).squeeze(1)
-        pi_taken[mask == 0] = 1.0
+        pi_taken = th.gather(mac_out, dim=-1, index=actions)
+        pi_taken[mask_td == 0] = 1.0
         log_pi_taken = th.log(pi_taken)
-        log_pi_taken = log_pi_taken.view(bs, -1, self.n_agents)
         loss = - (log_pi_taken * mask_td).sum() / mask_td.sum()
+
 
         self.optimiser.zero_grad()
         loss.backward()
