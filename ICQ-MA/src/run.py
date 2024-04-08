@@ -39,6 +39,8 @@ def run(_run, _config, _log):
 
     # unique_token = "{}__{}".format(args.name, datetime.datetime.now().strftime("%Y-%m-%d_%H-%M-%S"))
     unique_token = args.name + '-' + args.env_args['map_name']+ '-' + str(args.pref_segment_pairs) + '-' + args.offline_dataset_quality + '-' + str(args.seed)
+    if args.name == 'CPL':
+        unique_token += '-' + str(args.cpl_lambda) + '-' + str(args.cpl_alpha)
     args.unique_token = unique_token
     if args.use_tensorboard:
         tb_logs_direc = os.path.join(dirname(dirname(abspath(__file__))), "results", "tb_logs")
@@ -111,18 +113,7 @@ def run_sequential(args, logger):
     last_time = start_time
     logger.console_logger.info("Beginning training for {} timesteps".format(args.t_max))    
     episode_num = 0
-    
-    # # --------------------------- hdf5 -------------------------------
-    # import h5py
-    # hdFile_r = h5py.File(args.offline_dataset_dir, 'r')
-    # actions_h = th.tensor(hdFile_r.get('actions'))
-    # actions_onehot_h = th.tensor(hdFile_r.get('actions_onehot'))
-    # avail_actions_h = th.tensor(hdFile_r.get('avail_actions'))
-    # filled_h = th.tensor(hdFile_r.get('filled'))
-    # obs_h = th.tensor(hdFile_r.get('obs'))
-    # reward_h = th.tensor(hdFile_r.get('reward'))
-    # state_h = th.tensor(hdFile_r.get('state'))
-    # terminated_h = th.tensor(hdFile_r.get('terminated'))
+
 
     # # -------------------------- load pref dataset -----------------
     pref_dataset = th.load(args.offline_dataset_dir)
@@ -159,6 +150,8 @@ def run_sequential(args, logger):
             reward_sample = pref_dataset['reward'][sample_number][:, :max_ep_t_h]
             state_sample = pref_dataset['state'][sample_number][:, :max_ep_t_h]
             terminated_sample = pref_dataset['terminated'][sample_number][:, :max_ep_t_h]
+            mask_sample = pref_dataset['mask'][sample_number][:, :max_ep_t_h]
+
 
             off_batch = {}
             off_batch['obs'] = obs_sample.to(args.device)
@@ -170,6 +163,7 @@ def run_sequential(args, logger):
             off_batch['state'] = state_sample.to(args.device)
             off_batch['terminated'] = terminated_sample.to(args.device)
             off_batch['max_seq_length'] = max_ep_t_h.to(args.device)
+            off_batch['mask'] = mask_sample.to(args.device)
             off_batch['batch_size'] = args.off_batch_size
         
         else:
@@ -232,7 +226,7 @@ def run_sequential(args, logger):
             learner.train(off_batch, runner.t_env)
         # --------------------- CPL --------------------------------
         elif args.name == "CPL":
-            learner.train(off_batch0, off_batch1, runner.t_env, pref_dataset['labels'][sample_number0])
+            learner.train(off_batch0, off_batch1, runner.t_env, pref_dataset['labels'][sample_number0].to(args.device))
         
         n_test_runs = max(1, args.test_nepisode // runner.batch_size)
         if (runner.t_env - last_test_T) / args.test_interval >= 1.0: # args.test_interval
