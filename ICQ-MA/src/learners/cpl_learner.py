@@ -34,9 +34,8 @@ class CPLLearner:
         terminated0 = batch0["terminated"][:, :-1].float()
         avail_actions0 = batch0["avail_actions"][:, :-1].long()
 
-        # mask0 = batch0["filled"][:, :-1].float()
-        # mask0[:, 1:] = mask0[:, 1:] * (1 - terminated0[:, :-1])
-        mask0 = (actions0.sum(-2) != 0) * 1.0
+        mask0 = batch0["filled"][:, :-1].float()
+        mask0[:, 1:] = mask0[:, 1:] * (1 - terminated0[:, :-1])
 
 
         # Calculate estimated Q-Values
@@ -60,9 +59,8 @@ class CPLLearner:
         terminated1 = batch1["terminated"][:, :-1].float()
         avail_actions1 = batch1["avail_actions"][:, :-1].long()
 
-        # mask1 = batch1["filled"][:, :-1].float()
-        # mask1[:, 1:] = mask1[:, 1:] * (1 - terminated1[:, :-1])
-        mask1 = (actions0.sum(-2) != 0) * 1.0
+        mask1 = batch1["filled"][:, :-1].float()
+        mask1[:, 1:] = mask1[:, 1:] * (1 - terminated1[:, :-1])
 
         # Calculate estimated Q-Values
         mac_out1 = []

@@ -48,9 +48,8 @@ class OffPGLearner:
         actions = batch["actions"][:, :-1]
         terminated = batch["terminated"][:, :-1].float()
         avail_actions = batch["avail_actions"][:, :-1]
-        mask = (actions.sum(-2) != 0) * 1.0
-        # mask = batch["filled"][:, :-1].float() 
-        # mask[:, 1:] = mask[:, 1:] * (1 - terminated[:, :-1])
+        mask = batch["filled"][:, :-1].float() 
+        mask[:, 1:] = mask[:, 1:] * (1 - terminated[:, :-1])
         mask_td = mask.repeat(1, 1, self.n_agents).view(bs, -1, self.n_agents)
         mask = mask.repeat(1, 1, self.n_agents).view(-1)
         states = batch["state"][:, :-1]
@@ -110,10 +109,9 @@ class OffPGLearner:
         rewards = on_batch["reward"][:, :-1]
         actions = on_batch["actions"][:, :]
         terminated = on_batch["terminated"][:, :-1].float()
-        # mask = on_batch["filled"][:, :-1].float()
-        # mask[:, 1:] = mask[:, 1:] * (1 - terminated[:, :-1])
+        mask = on_batch["filled"][:, :-1].float()
+        mask[:, 1:] = mask[:, 1:] * (1 - terminated[:, :-1])
         avail_actions = on_batch["avail_actions"][:]
-        mask = (actions[:, :-1].sum(-2) != 0) * 1.0
         states = on_batch["state"]
 
         target_inputs = self.target_critic._build_inputs(on_batch, bs, max_t)

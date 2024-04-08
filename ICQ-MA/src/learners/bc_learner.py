@@ -27,9 +27,8 @@ class BCLearner:
         terminated = batch["terminated"][:, :-1].float()
         avail_actions = batch["avail_actions"][:, :-1].long()
 
-        mask = (actions.sum(-2) != 0) * 1.0
-        # mask = batch["filled"][:, :-1].float()
-        # mask[:, 1:] = mask[:, 1:] * (1 - terminated[:, :-1])
+        mask = batch["filled"][:, :-1].float()
+        mask[:, 1:] = mask[:, 1:] * (1 - terminated[:, :-1])
         mask_td = mask.repeat(1, 1, self.n_agents).unsqueeze(-1)
         # mask = mask.repeat(1, 1, self.n_agents).view(-1)
 
