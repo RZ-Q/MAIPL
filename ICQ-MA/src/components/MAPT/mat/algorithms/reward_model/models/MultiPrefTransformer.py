@@ -91,9 +91,11 @@ class MultiPrefTransformer(object):
             labels = batch['labels']
             B, T, N, _ = batch['observations0'].shape
             B, T, N, _ = batch['actions0'].shape
+            mask_0 = batch['masks0']
+            mask_1 = batch['masks1']
             ####################### copmpute loss
-            trans_pred_0 = self.trans(obs_0, act_0, timestep_0, attn_mask=None)
-            trans_pred_1 = self.trans(obs_1, act_1, timestep_1, attn_mask=None)
+            trans_pred_0 = self.trans(obs_0, act_0, timestep_0, attn_mask=mask_0)
+            trans_pred_1 = self.trans(obs_1, act_1, timestep_1, attn_mask=mask_1)
             ####################### add all agents rewards as global reward(or individual reward)
             if self.config.agent_individual:
                 trans_pred_0 = trans_pred_0.permute(0, 2, 1, 3).reshape(B * N, -1)

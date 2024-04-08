@@ -42,3 +42,7 @@ offline_dataset_dir: "/data/user/kouqian/files/MAOfflineDatasets/SMAC410_pref_ne
 offline_dataset_quality: "good-medium"
 pref_segment_pairs: 1000
 use_pref: False
+
+train_reward: True
+max_traj_length: 30
+model_type: "MultiPrefTransformerDivide"
