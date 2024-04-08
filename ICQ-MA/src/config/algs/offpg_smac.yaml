@@ -46,3 +46,4 @@ use_pref: False
 train_reward: True
 max_traj_length: 30
 model_type: "MultiPrefTransformerDivide"
+action_type: "Discrete"
