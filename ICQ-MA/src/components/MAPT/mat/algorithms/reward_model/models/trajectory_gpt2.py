@@ -1,7 +1,7 @@
 import torch
 import numpy as np
 import torch.nn as nn
-import MAPT.mat.algorithms.reward_model.models.ops as ops
+import components.MAPT.mat.algorithms.reward_model.models.ops as ops
 from torch.nn import functional as F
 from typing import Any
 

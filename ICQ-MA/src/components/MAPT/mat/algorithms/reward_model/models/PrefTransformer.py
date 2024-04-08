@@ -2,7 +2,7 @@ import torch
 import numpy as np
 from ml_collections import ConfigDict
 # from algorithms.reward_model.models.torch_utils import cross_ent_loss
-from MAPT.mat.algorithms.reward_model.models.torch_utils import cross_ent_loss
+from components.MAPT.mat.algorithms.reward_model.models.torch_utils import cross_ent_loss
 
 
 class PrefTransformer(object):

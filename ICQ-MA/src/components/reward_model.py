@@ -2,14 +2,14 @@ import torch
 import numpy as np
 import transformers
 from tensorboardX.writer import SummaryWriter
-from MAPT.mat.algorithms.reward_model.models.MR import MR
-from MAPT.mat.algorithms.reward_model.models.NMR import NMR
-from MAPT.mat.algorithms.reward_model.models.lstm import LSTMRewardModel
-from MAPT.mat.algorithms.reward_model.models.PrefTransformer import PrefTransformer
-from MAPT.mat.algorithms.reward_model.models.trajectory_gpt2 import TransRewardModel
-from MAPT.mat.algorithms.reward_model.models.MultiPrefTransformer import MultiPrefTransformer
-from MAPT.mat.algorithms.reward_model.models.encoder_decoder_divide import MultiTransRewardDivideModel
-from MAPT.mat.algorithms.reward_model.models.q_function import FullyConnectedQFunction
+from components.MAPT.mat.algorithms.reward_model.models.MR import MR
+from components.MAPT.mat.algorithms.reward_model.models.NMR import NMR
+from components.MAPT.mat.algorithms.reward_model.models.lstm import LSTMRewardModel
+from components.MAPT.mat.algorithms.reward_model.models.PrefTransformer import PrefTransformer
+from components.MAPT.mat.algorithms.reward_model.models.trajectory_gpt2 import TransRewardModel
+from components.MAPT.mat.algorithms.reward_model.models.MultiPrefTransformer import MultiPrefTransformer
+from components.MAPT.mat.algorithms.reward_model.models.encoder_decoder_divide import MultiTransRewardDivideModel
+from components.MAPT.mat.algorithms.reward_model.models.q_function import FullyConnectedQFunction
 
 
 class RewardModel:
