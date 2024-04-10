@@ -43,7 +43,11 @@ offline_dataset_quality: "good-medium"
 pref_segment_pairs: 1000
 use_pref: False
 
-train_reward: True
+# for reward model learning & ICQ with reward_hat
+train_reward: False
 max_traj_length: 30
-model_type: "MultiPrefTransformerDivide"
+model_type: "NMR"
 action_type: "Discrete"
+reward_train_epoch: 100
+reward_batch_size: 128
+use_reward_hat: False
