@@ -64,9 +64,13 @@ class NMR(object):
             labels = batch['labels']
             B, T, N, _ = batch['observations0'].shape
             B, T, N, _ = batch['actions0'].shape
+            mask_0 = batch['masks0'].unsqueeze(-1)
+            mask_1 = batch['masks1'].unsqueeze(-1)
             ####################### copmpute loss
             lstm_pred_0, _ = self.lstm(obs_0, act_0)
             lstm_pred_1, _ = self.lstm(obs_1, act_1)
+            lstm_pred_0 = lstm_pred_0 * mask_0
+            lstm_pred_1 = lstm_pred_0 * mask_1
             ####################### add all agents rewards as global reward(or individual reward)
             if self.config.agent_individual:
                 lstm_pred_0 = lstm_pred_0.permute(0, 2, 1, 3).reshape(B * N, T, -1)
@@ -109,10 +113,14 @@ class NMR(object):
         labels = batch['labels']
         B, T, N, _ = batch['observations0'].shape
         B, T, N, _ = batch['actions0'].shape
+        mask_0 = batch['masks0'].unsqueeze(-1)
+        mask_1 = batch['masks1'].unsqueeze(-1)
         ####################### copmpute loss
         with torch.no_grad():
             lstm_pred_0, _ = self.lstm(obs_0, act_0)
             lstm_pred_1, _ = self.lstm(obs_1, act_1)
+            lstm_pred_0 = lstm_pred_0 * mask_0
+            lstm_pred_1 = lstm_pred_0 * mask_1
         ####################### add all agents rewards as global reward(or individual reward)
         if self.config.agent_individual:
             lstm_pred_0 = lstm_pred_0.permute(0, 2, 1, 3).reshape(B * N, T, -1)

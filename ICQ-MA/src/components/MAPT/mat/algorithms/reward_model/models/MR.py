@@ -50,13 +50,15 @@ class MR(object):
             labels = batch['labels']
             B, T, N, obs_dim = batch['observations0'].shape
             B, T, N, act_dim = batch['actions0'].shape
+            mask_0 = batch['masks0'].reshape(-1)
+            mask_1 = batch['masks1'].reshape(-1)
             obs_0 = obs_0.reshape(-1, obs_dim)
             obs_1 = obs_1.reshape(-1, obs_dim)
             act_0 = act_0.reshape(-1, act_dim)
             act_1 = act_1.reshape(-1, act_dim)
             ####################### copmpute loss
-            rf_pred_0 = self.rf(obs_0, act_0)
-            rf_pred_1 = self.rf(obs_1, act_1)
+            rf_pred_0 = self.rf(obs_0, act_0) * mask_0
+            rf_pred_1 = self.rf(obs_1, act_1) * mask_1
             ####################### add all agents rewards as global reward(or individual reward)
             if self.config.agent_individual:
                 # (B * N, T, 1)
@@ -95,14 +97,16 @@ class MR(object):
         labels = batch['labels']
         B, T, N, obs_dim = batch['observations0'].shape
         B, T, N, act_dim = batch['actions0'].shape
+        mask_0 = batch['masks0'].reshape(-1)
+        mask_1 = batch['masks1'].reshape(-1)
         obs_0 = obs_0.reshape(-1, obs_dim)
         obs_1 = obs_1.reshape(-1, obs_dim)
         act_0 = act_0.reshape(-1, act_dim)
         act_1 = act_1.reshape(-1, act_dim)
         ####################### copmpute loss
         with torch.no_grad():
-            rf_pred_0 = self.rf(obs_0, act_0)
-            rf_pred_1 = self.rf(obs_1, act_1)
+            rf_pred_0 = self.rf(obs_0, act_0) * mask_0
+            rf_pred_1 = self.rf(obs_1, act_1) * mask_1
         ####################### add all agents rewards as global reward(or individual reward)
         if self.config.agent_individual:
             # (B * N, T, 1)

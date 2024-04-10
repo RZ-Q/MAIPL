@@ -80,9 +80,11 @@ class PrefTransformer(object):
             labels = batch['labels']
             B, T, N, _ = batch['observations0'].shape
             B, T, N, _ = batch['actions0'].shape
+            mask_0 = batch['masks0']
+            mask_1 = batch['masks1']
             ####################### copmpute loss
-            trans_pred_0, _ = self.trans(obs_0, act_0, timestep_0, training=True, attn_mask=None)
-            trans_pred_1, _ = self.trans(obs_1, act_1, timestep_1, training=True, attn_mask=None)
+            trans_pred_0, _ = self.trans(obs_0, act_0, timestep_0, training=True, attn_mask=mask_0)
+            trans_pred_1, _ = self.trans(obs_1, act_1, timestep_1, training=True, attn_mask=mask_1)
             # print('predict_value', torch.mean(trans_pred_0["value"]))
             # print('predict_value', torch.mean(trans_pred_1["value"]))
             if self.config.use_weighted_sum:
@@ -137,10 +139,12 @@ class PrefTransformer(object):
         labels = batch['labels']
         B, T, N, _ = batch['observations0'].shape
         B, T, N, _ = batch['actions0'].shape
+        mask_0 = batch['masks0']
+        mask_1 = batch['masks1']
         ####################### copmpute loss and grad
         with torch.no_grad():
-            trans_pred_0, _ = self.trans(obs_0, act_0, timestep_0, training=True, attn_mask=None)
-            trans_pred_1, _ = self.trans(obs_1, act_1, timestep_1, training=True, attn_mask=None)
+            trans_pred_0, _ = self.trans(obs_0, act_0, timestep_0, training=True, attn_mask=mask_0)
+            trans_pred_1, _ = self.trans(obs_1, act_1, timestep_1, training=True, attn_mask=mask_1)
         if self.config.use_weighted_sum:
             trans_pred_0 = trans_pred_0["weighted_sum"]
             trans_pred_1 = trans_pred_1["weighted_sum"]
@@ -255,9 +259,12 @@ class PrefTransformer(object):
         act1 = batch['actions1']
         timestep1 = batch['timesteps1']
 
-        attn_mask = torch.ones_like(act0)
+        mask_0 = batch['masks0'].unsqueeze(-1)
+        mask_1 = batch['masks1'].unsqueeze(-1)
+
         his_attn_mask = torch.zeros_like(act0)
-        attn_mask = torch.cat([his_attn_mask[:,1:], attn_mask], dim=1).squeeze(-1)
+        attn_mask0 = torch.cat([his_attn_mask[:,1:], mask_0], dim=1).squeeze(-1)
+        attn_mask1 = torch.cat([his_attn_mask[:,1:], mask_1], dim=1).squeeze(-1)
 
         max_len = obs0.shape[1]
 
@@ -274,8 +281,8 @@ class PrefTransformer(object):
         trans_preds0, trans_preds1 = [], []
         for i in range(max_len):
             with torch.no_grad():
-                trans_pred0, _ = self.trans(his_obs0[:,i:i+max_len], his_act0[:,i:i+max_len], his_timestep0[:,i:i+max_len], attn_mask=attn_mask[:, i:i+max_len], training=False, reverse=False)
-                trans_pred1, _ = self.trans(his_obs1[:,i:i+max_len], his_act1[:,i:i+max_len], his_timestep1[:,i:i+max_len], attn_mask=attn_mask[:, i:i+max_len], training=False, reverse=False)
+                trans_pred0, _ = self.trans(his_obs0[:,i:i+max_len], his_act0[:,i:i+max_len], his_timestep0[:,i:i+max_len], attn_mask=attn_mask0[:, i:i+max_len], training=False, reverse=False)
+                trans_pred1, _ = self.trans(his_obs1[:,i:i+max_len], his_act1[:,i:i+max_len], his_timestep1[:,i:i+max_len], attn_mask=attn_mask1[:, i:i+max_len], training=False, reverse=False)
                 trans_preds0.append(trans_pred0["value"][:, -1])
                 trans_preds1.append(trans_pred1["value"][:, -1])
 

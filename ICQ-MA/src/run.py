@@ -42,6 +42,8 @@ def run(_run, _config, _log):
     unique_token = args.name + '-' + args.env_args['map_name']+ '-' + str(args.pref_segment_pairs) + '-' + args.offline_dataset_quality + '-' + str(args.seed)
     if args.name == 'CPL':
         unique_token += '-' + str(args.cpl_lambda) + '-' + str(args.cpl_alpha)
+    if args.use_reward_hat:
+        unique_token += '-' + args.model_type
     args.unique_token = unique_token
     if args.use_tensorboard:
         tb_logs_direc = os.path.join(dirname(dirname(abspath(__file__))), "results", "tb_logs")
@@ -118,11 +120,16 @@ def run_sequential(args, logger):
 
     # # -------------------------- load pref dataset -----------------
     pref_dataset = th.load(args.offline_dataset_dir)
+    if args.use_reward_hat:
+        pref_dataset['reward'][:, :args.max_traj_length] = th.load(args.offline_dataset_dir[:-3] + '_' + args.model_type + '.th')
 
     if args.train_reward:
         # ----------------------------train reward-------------------------------
         reward_model = RewardModel(args)
-        reward_model.train(pref_dataset)
+        preds = reward_model.train(pref_dataset)
+        #TODO: add reward norm
+        reward_save_path = args.offline_dataset_dir[:-3] + '_' + args.model_type + '.th'
+        th.save(preds, reward_save_path)
     else:
         # ----------------------------train-------------------------------
         while runner.t_env <= args.t_max:

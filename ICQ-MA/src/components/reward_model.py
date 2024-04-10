@@ -34,6 +34,8 @@ class RewardModel:
         self.activation_final = 'none'
         self.orthogonal_init = 'False'
 
+        self.train_epoch = args.reward_train_epoch
+
         if self.model_type == "MultiPrefTransformerDivide":
                 config = transformers.GPT2Config(**self.multi_transformer_config)
                 # config multi-transformer reward model
@@ -57,7 +59,7 @@ class RewardModel:
             rf = FullyConnectedQFunction(
                 observation_dim=self.obs_shape, action_dim=self.n_actions, action_type=self.action_type,
                 inner_dim=self.MR_config.inner_dim, action_embd_dim=self.MR_config.action_embd_dim,
-                orthogonal_init=args.orthogonal_init, activations=self.activations,
+                orthogonal_init=self.orthogonal_init, activations=self.activations,
                 activation_final=self.activation_final, device=self.device,
             )
             self.reward_model = MR(self.MR_config, rf, self.device)
@@ -71,21 +73,48 @@ class RewardModel:
             self.reward_model = NMR(config, lstm, self.device)
     
     def train(self, pref_dataset):
-        batch = {}
-        mask = pref_dataset["filled"].float()
+        train_batch = {}
+        eval_batch = {}
+        mask = pref_dataset['filled'].float()
         mask[:, 1:] = mask[:, 1:] * (1 - pref_dataset["terminated"][:, :-1])
-        bs = int(self.args.off_batch_size / 2)
-        sample_number0 = np.random.choice(int(len(pref_dataset['action']) / 2), bs, replace=False)
-        sample_number1 = sample_number0 + int(len(pref_dataset['action']) / 2)
+        train_bs = int(self.args.reward_batch_size / 2)
+        eval_bs = int(pref_dataset['obs'].shape[0] / 2)
+        eval_batch['observations0'] = pref_dataset['obs'][:eval_bs, :self.max_traj_length].to(self.device)
+        eval_batch['observations1'] = pref_dataset['obs'][eval_bs:, :self.max_traj_length].to(self.device)
+        eval_batch['actions0'] = pref_dataset['action'][:eval_bs, :self.max_traj_length].to(self.device)
+        eval_batch['actions1'] = pref_dataset['action'][eval_bs:, :self.max_traj_length].to(self.device)
+        eval_batch['timesteps0'] = torch.arange(0,self.max_traj_length).unsqueeze(0).repeat(eval_bs, 1).to(self.device)
+        eval_batch['timesteps1'] = torch.arange(0,self.max_traj_length).unsqueeze(0).repeat(eval_bs, 1).to(self.device)
+        eval_batch['masks0'] = mask[:eval_bs, :self.max_traj_length].repeat(1, 1, self.n_agents).to(self.device)
+        eval_batch['masks1'] = mask[eval_bs:, :self.max_traj_length].repeat(1, 1, self.n_agents).to(self.device)
+        eval_batch['labels'] = pref_dataset['labels'].to(self.device)
+        eval_batch['labels'] = torch.cat([1 - eval_batch['labels'], eval_batch['labels']], dim=-1)
 
-        batch['observations0'] = pref_dataset['obs'][sample_number0][:, :self.max_traj_length].to(self.device)
-        batch['actions0'] = pref_dataset['action'][sample_number0][:, :self.max_traj_length].to(self.device)
-        batch['observatios1'] = pref_dataset['obs'][sample_number1][:, :self.max_traj_length].to(self.device)
-        batch['actions1'] = pref_dataset['action'][sample_number1][:, :self.max_traj_length].to(self.device)
-        batch['timesteps0'] = torch.arange(0,self.max_traj_length).unssqueeze(0).repeat(bs, 1)
-        batch['timesteps1'] = torch.arange(0,self.max_traj_length).unssqueeze(0).repeat(bs, 1)
-        batch['masks0'] = mask[sample_number0][:, :self.max_traj_length].repeat(1, 1, self.n_agents).to(self.device)
-        batch['masks1'] = mask[sample_number1][:, :self.max_traj_length].repeat(1, 1, self.n_agents).to(self.device)
-        batch['labels'] = pref_dataset['labels'][sample_number0].to(self.device)
+        for i in range(self.train_epoch):
+            shuffled_idx = np.random.permutation(eval_bs)
+            interval = int(eval_bs / train_bs) + 1
+            for j in range(interval):
+                start_pt0 = i * train_bs
+                end_pt0 = min((i + 1) * train_bs, eval_bs)
+                sample_number0 = shuffled_idx[start_pt0: end_pt0]
+                sample_number1 = sample_number0 + eval_bs
+                train_batch['observations0'] = pref_dataset['obs'][sample_number0][:, :self.max_traj_length].to(self.device)
+                train_batch['actions0'] = pref_dataset['action'][sample_number0][:, :self.max_traj_length].to(self.device)
+                train_batch['observations1'] = pref_dataset['obs'][sample_number1][:, :self.max_traj_length].to(self.device)
+                train_batch['actions1'] = pref_dataset['action'][sample_number1][:, :self.max_traj_length].to(self.device)
+                train_batch['timesteps0'] = torch.arange(0,self.max_traj_length).unsqueeze(0).repeat(train_bs, 1).to(self.device)
+                train_batch['timesteps1'] = torch.arange(0,self.max_traj_length).unsqueeze(0).repeat(train_bs, 1).to(self.device)
+                train_batch['masks0'] = mask[sample_number0][:, :self.max_traj_length].repeat(1, 1, self.n_agents).to(self.device)
+                train_batch['masks1'] = mask[sample_number1][:, :self.max_traj_length].repeat(1, 1, self.n_agents).to(self.device)
+                train_batch['labels'] = pref_dataset['labels'][sample_number0].to(self.device)
+                train_batch['labels'] = torch.cat([1 - train_batch['labels'], train_batch['labels']], dim=-1)
+                metrics = self.reward_model.train(train_batch)
+            
+            if i > 5:
+                acc = self.reward_model.evaluation_acc(eval_batch)
+                if acc > 0.97:
+                    break
+        
+        preds0, preds1 = self.reward_model.get_reward_for_offline(eval_batch)
 
-        metrics = self.reward_model.train(batch)
+        return torch.cat([preds0, preds1], dim=0)
