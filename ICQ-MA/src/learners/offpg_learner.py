@@ -102,6 +102,12 @@ class OffPGLearner:
             self.logger.log_stat("agent_grad_norm", grad_norm, t_env)
             self.logger.log_stat("pi_max", (pi.max(dim=1)[0] * mask).sum().item() / mask.sum().item(), t_env)
             self.log_stats_t = t_env
+            if self.args.use_wandb:
+                wandb.log({
+                    "coma_loss", coma_loss.item(),
+                    "agent_grad_norm", grad_norm,
+                    "pi_max", (pi.max(dim=1)[0] * mask).sum().item() / mask.sum().item(),
+                })
 
     def train_critic(self, on_batch, best_batch=None, log=None, t_env=None):
         bs = on_batch['batch_size']
@@ -184,6 +190,12 @@ class OffPGLearner:
             self.logger.log_stat("q_taken_mean", (q_vals * mask_t).sum().item() / mask_elems, t_env)
             self.logger.log_stat("beta_q", self.icq_beta, t_env)
             # self.log_stats_t = t_env
+            if self.args.use_wandb:
+                wandb.log({
+                    "critic_loss": critic_loss.item(),
+                    "q_taken_mean": (q_vals * mask_t).sum().item() / mask_elems,
+                    "beta_q": self.icq_beta,
+                })
 
     def _update_targets(self):
         self.target_critic.load_state_dict(self.critic.state_dict())

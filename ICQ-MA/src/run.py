@@ -40,15 +40,20 @@ def run(_run, _config, _log):
 
     # unique_token = "{}__{}".format(args.name, datetime.datetime.now().strftime("%Y-%m-%d_%H-%M-%S"))
     unique_token = args.name + '-' + args.env_args['map_name']+ '-' + str(args.pref_segment_pairs) + '-' + args.offline_dataset_quality + '-' + str(args.seed)
+    unique_token_wandb = args.name + '-' + args.env_args['map_name']+ '-' + str(args.pref_segment_pairs) + '-' + args.offline_dataset_quality
     if args.name == 'CPL':
-        unique_token += '-' + str(args.cpl_lambda) + '-' + str(args.cpl_alpha)
+        unique_token += '-' + str(args.cpl_lambda) + '-' + str(args.cpl_alpha) + '-' + args.cpl_constrain_type + str(args.cpl_constrain_coe)
+        unique_token_wandb += '-' + str(args.cpl_lambda) + '-' + str(args.cpl_alpha) + '-' + args.cpl_constrain_type + str(args.cpl_constrain_coe)
     if args.use_reward_hat:
         unique_token += '-' + args.model_type
+        unique_token_wandb += '-' + args.model_type
     args.unique_token = unique_token
     if args.use_tensorboard:
         tb_logs_direc = os.path.join(dirname(dirname(abspath(__file__))), "results", "tb_logs")
         tb_exp_direc = os.path.join(tb_logs_direc, "{}").format(unique_token)
         logger.setup_tb(tb_exp_direc)
+    if args.use_wandb:
+        wandb.init(project="ICQ", group=unique_token_wandb, name=str(args.seed))
 
     logger.setup_sacred(_run)
 
@@ -263,6 +268,8 @@ def run_sequential(args, logger):
 
             if (runner.t_env - last_log_T) >= args.log_interval:
                 logger.log_stat("episode", episode, runner.t_env)
+                if args.use_wandb:
+                    wandb.log({"episode": episode})
                 logger.print_recent_stats()
                 last_log_T = runner.t_env
             

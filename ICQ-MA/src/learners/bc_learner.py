@@ -3,6 +3,7 @@ import torch as th
 from torch.optim import RMSprop, Adam
 import torch.nn.functional as F
 # from components.standarize_stream import RunningMeanStd
+import wandb
 
 
 class BCLearner:
@@ -60,6 +61,12 @@ class BCLearner:
             self.logger.log_stat("loss", loss.item(), t_env)
             self.logger.log_stat("grad_norm", grad_norm.item(), t_env)
             self.log_stats_t = t_env
+            if self.args.use_wandb:
+                wandb.log({
+                    "loss": loss.item(),
+                    "agent_grad_norm": grad_norm,
+                })
+
 
     def cuda(self):
         self.mac.cuda()

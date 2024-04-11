@@ -214,11 +214,18 @@ class ParallelRunner:
         #             '|, evaluation/Average Returns: |  ' + str(np.mean(returns)) + '|' + '\n') 
         # -----------------------------------------------------------------------
         self.logger.log_stat(prefix + "return_std", np.std(returns), self.t_env)
+        if self.args.use_wandb:
+            wandb.log({
+                prefix + "return_mean": np.mean(returns),
+                prefix + "return_std": np.std(returns),
+            })
         returns.clear()
 
         for k, v in stats.items():
             if k != "n_episodes":
                 self.logger.log_stat(prefix + k + "_mean" , v/stats["n_episodes"], self.t_env)
+                if self.args.use_wandb:
+                    wandb.log({prefix + k + "_mean": v/stats["n_episodes"]})
         stats.clear()
 
 

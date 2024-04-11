@@ -20,6 +20,8 @@ class CPLLearner:
         self.logger = logger
         self.cpl_lambda = args.cpl_lambda
         self.cpl_alpha = args.cpl_alpha
+        self.cpl_constrain_coe = args.cpl_constrain_coe
+        self.cpl_constrain_type = args.cpl_constrain_type
 
         self.log_stats_t = -self.args.learner_log_interval - 1
 
@@ -88,7 +90,10 @@ class CPLLearner:
         nlp21 = th.log(th.exp(-max21) + th.exp(-logit10 - max21)) + max21
         nlp12 = th.log(th.exp(-max12) + th.exp(-logit01 - max12)) + max12
         loss = labels.squeeze(-1) * nlp21 + (1 - labels.squeeze(-1)) * nlp12
-        loss = loss.mean()
+        # add constrain item
+        # loss = loss.mean()
+        log_pi_taken = th.cat([log_pi_taken0.view(-1), log_pi_taken1.view(-1)], dim=0)
+        loss = loss.mean() + self.cpl_constrain_coe * log_pi_taken.mean()
 
         self.agent_optimiser.zero_grad()
         loss.backward()
@@ -99,6 +104,11 @@ class CPLLearner:
             self.logger.log_stat("loss", loss.item(), t_env)
             self.logger.log_stat("agent_grad_norm", grad_norm, t_env)
             self.log_stats_t = t_env
+            if self.args.use_wandb:
+                wandb.log({
+                    "loss": loss.item(),
+                    "agent_grad_norm": grad_norm,
+                })
 
     def cuda(self):
         self.mac.cuda()
