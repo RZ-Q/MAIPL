@@ -85,7 +85,7 @@ class ParallelRunner:
         self.t = 0
         self.env_steps_this_run = 0
 
-    def run(self, test_mode=False):
+    def run(self, test_mode=False, running_log=None):
         self.reset()
 
         all_terminated = False
@@ -196,16 +196,16 @@ class ParallelRunner:
 
         n_test_runs = max(1, self.args.test_nepisode // self.batch_size) * self.batch_size
         if test_mode and (len(self.test_returns) == n_test_runs):
-            self._log(cur_returns, cur_stats, log_prefix)
+            self._log(cur_returns, cur_stats, log_prefix, running_log)
         elif self.t_env - self.log_train_stats_t >= self.args.runner_log_interval:
-            self._log(cur_returns, cur_stats, log_prefix)
+            self._log(cur_returns, cur_stats, log_prefix, running_log)
             if hasattr(self.mac.action_selector, "epsilon"):
                 self.logger.log_stat("epsilon", self.mac.action_selector.epsilon, self.t_env)
             self.log_train_stats_t = self.t_env
 
         return self.batch
  
-    def _log(self, returns, stats, prefix):
+    def _log(self, returns, stats, prefix, running_log):
         self.logger.log_stat(prefix + "return_mean", np.mean(returns), self.t_env)
         # ------------------------save-------------------------------------------
         # with open('MMM' + '_' + str(300) + '_' +'ICMA-one-step'+ '.txt','a') as f: 
@@ -214,18 +214,16 @@ class ParallelRunner:
         #             '|, evaluation/Average Returns: |  ' + str(np.mean(returns)) + '|' + '\n') 
         # -----------------------------------------------------------------------
         self.logger.log_stat(prefix + "return_std", np.std(returns), self.t_env)
-        if self.args.use_wandb:
-            wandb.log({
-                prefix + "return_mean": np.mean(returns),
-                prefix + "return_std": np.std(returns),
-            })
+        running_log.update({
+            prefix + "return_mean": np.mean(returns),
+            prefix + "return_std": np.std(returns),
+        })
         returns.clear()
 
         for k, v in stats.items():
             if k != "n_episodes":
                 self.logger.log_stat(prefix + k + "_mean" , v/stats["n_episodes"], self.t_env)
-                if self.args.use_wandb:
-                    wandb.log({prefix + k + "_mean": v/stats["n_episodes"]})
+                running_log.update({prefix + k + "_mean": v/stats["n_episodes"]})
         stats.clear()
 
 

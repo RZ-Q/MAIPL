@@ -115,7 +115,7 @@ def run_sequential(args, logger):
 
     episode = 0
     last_test_T = -args.test_interval - 1
-    last_log_T = 0
+    last_log_T = -100000
     model_save_time = 0
     start_time = time.time()
     last_time = start_time
@@ -143,17 +143,7 @@ def run_sequential(args, logger):
 
             th.set_num_threads(8)
 
-            running_log = {
-                "critic_loss": [],
-                "critic_grad_norm": [],
-                "td_error_abs": [],
-                "target_mean": [],
-                "q_taken_mean": [],
-                "q_max_mean": [],
-                "q_min_mean": [],
-                "q_max_var": [],
-                "q_min_var": []
-            }
+            running_log = {}
 
             if not args.use_pref:
                 # # --------------------------- sample for ICQ,BC,OMIGA -------------------------------
@@ -237,7 +227,7 @@ def run_sequential(args, logger):
 
             # --------------------- ICQ-MA --------------------------------
             if args.name == "ICQ-MA":
-                learner.train_critic(off_batch, best_batch=None, log=running_log, t_env=runner.t_env)
+                learner.train_critic(off_batch, best_batch=None, running_log=running_log, t_env=runner.t_env)
                 learner.train(off_batch, runner.t_env, running_log)
             # --------------------- BC --------------------------------
             elif args.name == "BC":
@@ -256,7 +246,7 @@ def run_sequential(args, logger):
 
                 last_test_T = runner.t_env
                 for _ in range(n_test_runs):
-                    runner.run(test_mode=True)
+                    runner.run(test_mode=True, running_log=running_log)
 
             if args.save_model and (runner.t_env - model_save_time >= args.save_model_interval or model_save_time == 0):
                 model_save_time = runner.t_env
@@ -268,8 +258,9 @@ def run_sequential(args, logger):
 
             if (runner.t_env - last_log_T) >= args.log_interval:
                 logger.log_stat("episode", episode, runner.t_env)
+                running_log.update({"episode": episode})
                 if args.use_wandb:
-                    wandb.log({"episode": episode})
+                    wandb.log(running_log)
                 logger.print_recent_stats()
                 last_log_T = runner.t_env
             

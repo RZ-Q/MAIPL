@@ -41,7 +41,7 @@ class OffPGLearner:
         self.critic_optimiser = RMSprop(params=self.critic_params, lr=args.critic_lr, alpha=args.optim_alpha, eps=args.optim_eps)
         self.mixer_optimiser = RMSprop(params=self.mixer_params, lr=args.critic_lr, alpha=args.optim_alpha, eps=args.optim_eps)
 
-    def train(self, batch: EpisodeBatch, t_env: int, log):
+    def train(self, batch: EpisodeBatch, t_env: int, running_log: dict):
         # print('training')
         bs = batch['batch_size']
         max_t = batch['max_seq_length']
@@ -102,14 +102,13 @@ class OffPGLearner:
             self.logger.log_stat("agent_grad_norm", grad_norm, t_env)
             self.logger.log_stat("pi_max", (pi.max(dim=1)[0] * mask).sum().item() / mask.sum().item(), t_env)
             self.log_stats_t = t_env
-            if self.args.use_wandb:
-                wandb.log({
-                    "coma_loss", coma_loss.item(),
-                    "agent_grad_norm", grad_norm,
-                    "pi_max", (pi.max(dim=1)[0] * mask).sum().item() / mask.sum().item(),
-                })
+            running_log.update({
+                "coma_loss": coma_loss.item(),
+                "agent_grad_norm": grad_norm,
+                "pi_max": (pi.max(dim=1)[0] * mask).sum().item() / mask.sum().item(),
+            })
 
-    def train_critic(self, on_batch, best_batch=None, log=None, t_env=None):
+    def train_critic(self, on_batch, best_batch=None, running_log=None, t_env=None):
         bs = on_batch['batch_size']
         max_t = on_batch['max_seq_length']
         rewards = on_batch["reward"][:, :-1]
@@ -150,7 +149,6 @@ class OffPGLearner:
             if mask_t.sum() < 0.5:
                 continue
             q_vals = self.critic.forward(inputs[:, t:t+1])
-            q_test = q_vals
             q_vals = th.gather(q_vals, 3, index=actions[:, t:t+1]).squeeze(3)
             q_vals = self.mixer.forward(q_vals, states[:, t:t+1])
 
@@ -165,21 +163,7 @@ class OffPGLearner:
             self.critic_optimiser.step()
             self.mixer_optimiser.step()
             self.critic_training_steps += 1
-
-            log["critic_loss"].append(critic_loss.item())
-            log["critic_grad_norm"].append(grad_norm)
             mask_elems = mask_t.sum().item()
-            log["td_error_abs"].append((q_err.abs().sum().item() / mask_elems))
-            log["target_mean"].append((target_q_t * mask_t).sum().item() / mask_elems)
-            log["q_taken_mean"].append((q_vals * mask_t).sum().item() / mask_elems)
-            log["q_max_mean"].append((th.mean(q_test.max(dim=3)[0], dim=2, keepdim=True) * mask_t).sum().item() / mask_elems)
-            log["q_min_mean"].append((th.mean(q_test.min(dim=3)[0], dim=2, keepdim=True) * mask_t).sum().item() / mask_elems)
-            log["q_max_var"].append((th.var(q_test.max(dim=3)[0], dim=2, keepdim=True) * mask_t).sum().item() / mask_elems)
-            log["q_min_var"].append((th.var(q_test.min(dim=3)[0], dim=2, keepdim=True) * mask_t).sum().item() / mask_elems)
-
-            if (t == 0):
-                log["q_max_first"] = (th.mean(q_test.max(dim=3)[0], dim=2, keepdim=True) * mask_t).sum().item() / mask_elems
-                log["q_min_first"] = (th.mean(q_test.min(dim=3)[0], dim=2, keepdim=True) * mask_t).sum().item() / mask_elems
 
         if (self.critic_training_steps - self.last_target_update_step) / self.args.target_update_interval >= 1.0:
             self._update_targets()
@@ -187,15 +171,16 @@ class OffPGLearner:
 
         if t_env - self.log_stats_t >= self.args.learner_log_interval:
             self.logger.log_stat("critic_loss", critic_loss.item(), t_env)
+            self.logger.log_stat("critic_grad_norm", grad_norm, t_env)
             self.logger.log_stat("q_taken_mean", (q_vals * mask_t).sum().item() / mask_elems, t_env)
             self.logger.log_stat("beta_q", self.icq_beta, t_env)
             # self.log_stats_t = t_env
-            if self.args.use_wandb:
-                wandb.log({
-                    "critic_loss": critic_loss.item(),
-                    "q_taken_mean": (q_vals * mask_t).sum().item() / mask_elems,
-                    "beta_q": self.icq_beta,
-                })
+            running_log.update({
+                "critic_loss": critic_loss.item(),
+                "critic_grad_norm": grad_norm,
+                "q_taken_mean": (q_vals * mask_t).sum().item() / mask_elems,
+                "beta_q": self.icq_beta,
+            })
 
     def _update_targets(self):
         self.target_critic.load_state_dict(self.critic.state_dict())

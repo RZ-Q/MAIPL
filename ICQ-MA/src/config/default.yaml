@@ -18,7 +18,7 @@ buffer_cpu_only: True # If true we won't keep all of the replay buffer in vram
 
 # --- Logging options ---
 use_tensorboard: False # Log results to tensorboard
-use_wandb: False
+use_wandb: False # Log results to wandb
 save_model: False # Save the models to disk
 save_model_interval: 1000000 # Save models after this many timesteps 2000000
 checkpoint_path: "" # Load a checkpoint from this path
