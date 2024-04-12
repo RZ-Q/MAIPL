@@ -110,10 +110,9 @@ class RewardModel:
                 train_batch['labels'] = torch.cat([1 - train_batch['labels'], train_batch['labels']], dim=-1)
                 metrics = self.reward_model.train(train_batch)
             
-            if i > 5:
-                acc = self.reward_model.evaluation_acc(eval_batch)
-                if acc > 0.97:
-                    break
+            acc = self.reward_model.evaluation_acc(eval_batch)
+            if acc > 0.97:
+                break
         
         preds0, preds1 = self.reward_model.get_reward_for_offline(eval_batch)
 

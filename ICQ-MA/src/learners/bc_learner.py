@@ -21,7 +21,7 @@ class BCLearner:
         self.log_stats_t = -self.args.learner_log_interval - 1
 
 
-    def train(self, batch, t_env):
+    def train(self, batch, t_env, running_log):
         # Get the relevant quantities
         bs = batch['batch_size']
         actions = batch["actions"][:, :-1]
@@ -61,11 +61,10 @@ class BCLearner:
             self.logger.log_stat("loss", loss.item(), t_env)
             self.logger.log_stat("grad_norm", grad_norm.item(), t_env)
             self.log_stats_t = t_env
-            if self.args.use_wandb:
-                wandb.log({
-                    "loss": loss.item(),
-                    "agent_grad_norm": grad_norm,
-                })
+            running_log.update({
+                "loss": loss.item(),
+                "agent_grad_norm": grad_norm,
+            })
 
 
     def cuda(self):

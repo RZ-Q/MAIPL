@@ -29,7 +29,7 @@ class CPLLearner:
 
         self.agent_optimiser = RMSprop(params=self.agent_params, lr=args.lr, alpha=args.optim_alpha, eps=args.optim_eps)
 
-    def train(self, batch0, batch1, t_env, labels):
+    def train(self, batch0, batch1, t_env, labels, running_log):
         # # ----------- batch0 preferred -----------------
         bs = batch0['batch_size']
         actions0 = batch0["actions"][:, :-1]
@@ -91,9 +91,13 @@ class CPLLearner:
         nlp12 = th.log(th.exp(-max12) + th.exp(-logit01 - max12)) + max12
         loss = labels.squeeze(-1) * nlp21 + (1 - labels.squeeze(-1)) * nlp12
         # add constrain item
-        # loss = loss.mean()
-        log_pi_taken = th.cat([log_pi_taken0.view(-1), log_pi_taken1.view(-1)], dim=0)
-        loss = loss.mean() + self.cpl_constrain_coe * log_pi_taken.mean()
+        loss = loss.mean()
+        # mac_out0[mask0.repeat(1, 1, self.n_agents).unsqueeze(-1).repeat(1, 1, 1, self.n_actions) == 0] = 1.0
+        # mac_out1[mask1.repeat(1, 1, self.n_agents).unsqueeze(-1).repeat(1, 1, 1, self.n_actions) == 0] = 1.0
+        # pi_logpi0 = mac_out0 * th.log(mac_out0 + 1e-6) * mask0.unsqueeze(-1)
+        # pi_logpi1 = mac_out1 * th.log(mac_out1 + 1e-6) * mask1.unsqueeze(-1)
+        # pi_log_pi = th.cat([pi_logpi0, pi_logpi1], dim=1).sum(-1)
+        # loss = loss.mean() + self.cpl_constrain_coe * pi_log_pi.mean()
 
         self.agent_optimiser.zero_grad()
         loss.backward()
@@ -104,11 +108,10 @@ class CPLLearner:
             self.logger.log_stat("loss", loss.item(), t_env)
             self.logger.log_stat("agent_grad_norm", grad_norm, t_env)
             self.log_stats_t = t_env
-            if self.args.use_wandb:
-                wandb.log({
-                    "loss": loss.item(),
-                    "agent_grad_norm": grad_norm,
-                })
+            running_log.update({
+                "loss": loss.item(),
+                "agent_grad_norm": grad_norm,
+            })
 
     def cuda(self):
         self.mac.cuda()

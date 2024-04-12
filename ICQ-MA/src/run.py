@@ -42,8 +42,8 @@ def run(_run, _config, _log):
     unique_token = args.name + '-' + args.env_args['map_name']+ '-' + str(args.pref_segment_pairs) + '-' + args.offline_dataset_quality + '-' + str(args.seed)
     unique_token_wandb = args.name + '-' + args.env_args['map_name']+ '-' + str(args.pref_segment_pairs) + '-' + args.offline_dataset_quality
     if args.name == 'CPL':
-        unique_token += '-' + str(args.cpl_lambda) + '-' + str(args.cpl_alpha) + '-' + args.cpl_constrain_type + str(args.cpl_constrain_coe)
-        unique_token_wandb += '-' + str(args.cpl_lambda) + '-' + str(args.cpl_alpha) + '-' + args.cpl_constrain_type + str(args.cpl_constrain_coe)
+        unique_token += '-' + str(args.cpl_lambda) + '-' + str(args.cpl_alpha)
+        unique_token_wandb += '-' + str(args.cpl_lambda) + '-' + str(args.cpl_alpha)
     if args.use_reward_hat:
         unique_token += '-' + args.model_type
         unique_token_wandb += '-' + args.model_type
@@ -231,10 +231,10 @@ def run_sequential(args, logger):
                 learner.train(off_batch, runner.t_env, running_log)
             # --------------------- BC --------------------------------
             elif args.name == "BC":
-                learner.train(off_batch, runner.t_env)
+                learner.train(off_batch, runner.t_env, running_log)
             # --------------------- CPL --------------------------------
             elif args.name == "CPL":
-                learner.train(off_batch0, off_batch1, runner.t_env, pref_dataset['labels'][sample_number0].to(args.device))
+                learner.train(off_batch0, off_batch1, runner.t_env, pref_dataset['labels'][sample_number0].to(args.device), running_log)
             
             n_test_runs = max(1, args.test_nepisode // runner.batch_size)
             if (runner.t_env - last_test_T) / args.test_interval >= 1.0: # args.test_interval

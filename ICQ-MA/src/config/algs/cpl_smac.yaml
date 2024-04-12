@@ -19,8 +19,10 @@ env_args:
 
 
 lr: 0.0005
-cpl_lambda: 0.5
-cpl_alpha: 10
+cpl_lambda: 0.1
+cpl_alpha: 1000
+cpl_constrain_coe: 1.0
+cpl_constrain_type: "pi"  # "ppo"
 
 # use qmix
 mixing_embed_dim: 32
