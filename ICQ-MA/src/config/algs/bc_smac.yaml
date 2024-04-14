@@ -25,7 +25,7 @@ mask_before_softmax: False
 
 name: "BC"
 
-offline_dataset_dir: "/data/user/kouqian/files/MAOfflineDatasets/SMAC410_pref_new/5m_vs_6m_good-medium_1000_30.th"
+offline_dataset_dir: "/data/user/kouqian/SMAC410_pref_new/5m_vs_6m_good-medium_1000_30.th"
 offline_dataset_quality: "good-medium"
 pref_segment_pairs: 1000
 use_pref: False
