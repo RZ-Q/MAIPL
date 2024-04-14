@@ -45,6 +45,8 @@ class MACPLLearner:
         mask1[:, 1:] = mask1[:, 1:] * (1 - terminated1[:, :-1])
 
         # TODO: add order update, consider change the last action in obs
+        # replace the action in batch0, batch1
+        # keep old_macout
         agent_orders = np.random.permutation(self.n_agents)
         for agent_id in agent_orders:
             # Calculate estimated Q-Values
