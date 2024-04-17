@@ -11,7 +11,7 @@ import torch.nn.functional as F
 import numpy as np
 import wandb
 
-class MACPLLearner:
+class MAICPLLearner:
     def __init__(self, mac, scheme, logger, args):
         self.args = args
         self.n_agents = args.n_agents
