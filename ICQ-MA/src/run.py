@@ -44,7 +44,7 @@ def run(_run, _config, _log):
     if args.name == 'CPL':
         unique_token += '-' + str(args.cpl_lambda) + '-' + str(args.cpl_alpha)
         unique_token_wandb += '-' + str(args.cpl_lambda) + '-' + str(args.cpl_alpha)
-    if args.name == 'MACPL':
+    if args.name == 'MAICPL':
         unique_token += '-' + str(args.cpl_lambda) + '-' + str(args.cpl_alpha)
         unique_token_wandb += '-' + str(args.cpl_lambda) + '-' + str(args.cpl_alpha)
     if args.use_reward_hat:

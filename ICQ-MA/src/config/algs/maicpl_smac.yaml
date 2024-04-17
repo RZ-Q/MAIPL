@@ -32,7 +32,7 @@ agent_output_type: "pi_logits"
 learner: "macpl_learner"
 q_nstep: 0  # 0 corresponds to default Q, 1 is r + gamma*Q, etc
 
-name: "MACPL"
+name: "MAICPL"
 # agent: "rnn_ns"
 
 offline_dataset_dir: "/data/user/kouqian/SMAC410_pref_new/5m_vs_6m_good-medium_1000_30.th"

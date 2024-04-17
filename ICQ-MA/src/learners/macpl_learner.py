@@ -58,7 +58,7 @@ class MACPLLearner:
 
         pi_taken0 = th.gather(mac_out0, dim=-1, index=actions0)
         pi_taken0[mask0.repeat(1, 1, self.n_agents).unsqueeze(-1) == 0] = 1.0
-        log_pi_taken0 = th.log(pi_taken0).squeeze(-1).sum(-1)
+        log_pi_taken0 = th.log(pi_taken0).squeeze(-1)
 
         # Calculate estimated Q-Values
         mac_out1 = []
@@ -74,18 +74,18 @@ class MACPLLearner:
 
         pi_taken1 = th.gather(mac_out1, dim=-1, index=actions1)
         pi_taken1[mask1.repeat(1, 1, self.n_agents).unsqueeze(-1) == 0] = 1.0
-        log_pi_taken1 = th.log(pi_taken1).squeeze(-1).sum(-1)
+        log_pi_taken1 = th.log(pi_taken1).squeeze(-1)
 
         # # ------------- CPL loss ------------------
-        adv0 = (self.cpl_alpha * log_pi_taken0 * mask0.squeeze(-1)).sum(1)
-        adv1 = (self.cpl_alpha * log_pi_taken1 * mask1.squeeze(-1)).sum(1)
+        adv0 = (self.cpl_alpha * log_pi_taken0 * mask0).sum(1)
+        adv1 = (self.cpl_alpha * log_pi_taken1 * mask1).sum(1)
         logit10 = adv1 - self.cpl_lambda * adv0
         logit01 = adv0 - self.cpl_lambda * adv1
         max21 = th.clamp(-logit10, min=0, max=None)
         max12 = th.clamp(-logit01, min=0, max=None)
         nlp21 = th.log(th.exp(-max21) + th.exp(-logit10 - max21)) + max21
         nlp12 = th.log(th.exp(-max12) + th.exp(-logit01 - max12)) + max12
-        loss = labels.squeeze(-1) * nlp21 + (1 - labels.squeeze(-1)) * nlp12
+        loss = labels * nlp21 + (1 - labels) * nlp12
         # add constrain item
         loss = loss.mean()
 
