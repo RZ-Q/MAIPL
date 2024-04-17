@@ -60,49 +60,9 @@ class BasicMAC:
             batch_size = ep_batch.batch_size
         return agent_outs.view(batch_size, self.n_agents, -1)
         
-    def forward_agent(self, ep_batch, t, agent_id, test_mode=False):
-        agent_inputs = self._build_inputs(ep_batch, t).reshape(ep_batch['batch_size'], self.n_agents, -1)[:, agent_id]
-        avail_actions = ep_batch["avail_actions"][:, t, agent_id]
-        agent_outs, agent_hidden_states = self.agent.agents[agent_id](agent_inputs, self.agent_hidden_states[agent_id])
-        self.agent_hidden_states[agent_id] = agent_hidden_states
-        
-        # Softmax the agent outputs if they're policy logits
-        if self.agent_output_type == "pi_logits":
-
-            if getattr(self.args, "mask_before_softmax", True):
-                # Make the logits for unavailable actions very negative to minimise their affect on the softmax
-                reshaped_avail_actions = avail_actions.reshape(ep_batch.batch_size * self.n_agents, -1)
-                agent_outs[reshaped_avail_actions == 0] = -1e11
-
-            agent_outs = th.nn.functional.softmax(agent_outs, dim=-1)
-            # agent_outs: (40, 18)
-            if not test_mode:
-                # Epsilon floor
-                epsilon_action_num = agent_outs.size(-1)
-                if getattr(self.args, "mask_before_softmax", True):
-                    # With probability epsilon, we will pick an available action uniformly
-                    epsilon_action_num = reshaped_avail_actions.sum(dim=1, keepdim=True).float()
-
-                agent_outs = ((1 - self.action_selector.epsilon) * agent_outs
-                               + th.ones_like(agent_outs) * self.action_selector.epsilon/epsilon_action_num)
-
-                if getattr(self.args, "mask_before_softmax", True):
-                    # Zero out the unavailable actions
-                    agent_outs[reshaped_avail_actions == 0] = 0.0
-        try:
-            batch_size = ep_batch['batch_size']
-        except:
-            batch_size = ep_batch.batch_size
-        
-        return agent_outs.view(batch_size, -1)
 
     def init_hidden(self, batch_size):
         self.hidden_states = self.agent.init_hidden().unsqueeze(0).expand(batch_size, self.n_agents, -1)  # bav
-    
-    def init_agent_hidden(self, batch_size):
-        self.agent_hidden_states = []
-        for i in range(self.n_agents):
-            self.agent_hidden_states.append(self.agent.agents[i].init_hidden().expand(batch_size, -1))
     
     def parameters(self):
         return self.agent.parameters()

@@ -45,8 +45,8 @@ def run(_run, _config, _log):
         unique_token += '-' + str(args.cpl_lambda) + '-' + str(args.cpl_alpha)
         unique_token_wandb += '-' + str(args.cpl_lambda) + '-' + str(args.cpl_alpha)
     if args.name == 'MACPL':
-        unique_token += '-' + str(args.cpl_lambda) + '-' + str(args.cpl_alpha) + '-ns'
-        unique_token_wandb += '-' + str(args.cpl_lambda) + '-' + str(args.cpl_alpha) + '-ns'
+        unique_token += '-' + str(args.cpl_lambda) + '-' + str(args.cpl_alpha)
+        unique_token_wandb += '-' + str(args.cpl_lambda) + '-' + str(args.cpl_alpha)
     if args.use_reward_hat:
         unique_token += '-' + args.model_type
         unique_token_wandb += '-' + args.model_type
