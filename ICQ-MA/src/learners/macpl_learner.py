@@ -87,7 +87,7 @@ class MACPLLearner:
         nlp12 = th.log(th.exp(-max12) + th.exp(-logit01 - max12)) + max12
         loss = labels * nlp21 + (1 - labels) * nlp12
         # add constrain item
-        loss = loss.mean()
+        loss = loss.sum(-1).mean()
 
         self.agent_optimiser.zero_grad()
         loss.backward()
