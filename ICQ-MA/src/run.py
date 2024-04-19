@@ -47,6 +47,9 @@ def run(_run, _config, _log):
     if args.name == 'MAICPL':
         unique_token += '-' + str(args.cpl_lambda) + '-' + str(args.cpl_alpha)
         unique_token_wandb += '-' + str(args.cpl_lambda) + '-' + str(args.cpl_alpha)
+    if args.name == 'HACPL':
+        unique_token += '-' + str(args.cpl_lambda) + '-' + str(args.cpl_alpha) + '-fixorder_' + str(args.fix_order)
+        unique_token_wandb += '-' + str(args.cpl_lambda) + '-' + str(args.cpl_alpha) + '-fixorder_' + str(args.fix_order)
     if args.use_reward_hat:
         unique_token += '-' + args.model_type
         unique_token_wandb += '-' + args.model_type
@@ -236,7 +239,7 @@ def run_sequential(args, logger):
             elif args.name == "BC":
                 learner.train(off_batch, runner.t_env, running_log)
             # --------------------- CPL --------------------------------
-            elif args.name == "CPL" or args.name == "MAICPL":
+            elif args.name == "CPL" or args.name == "MAICPL" or args.name == "HACPL":
                 learner.train(off_batch0, off_batch1, runner.t_env, pref_dataset['labels'][sample_number0].to(args.device), running_log)
             
             n_test_runs = max(1, args.test_nepisode // runner.batch_size)

@@ -32,22 +32,22 @@ class MAICPLLearner:
     def train(self, batch0, batch1, t_env, labels, running_log):
         # # ----------- batch0 preferred -----------------
         bs = batch0['batch_size']
-        actions0 = batch0["actions"][:, :-1]
-        terminated0 = batch0["terminated"][:, :-1].float()
-        avail_actions0 = batch0["avail_actions"][:, :-1].long()
-        mask0 = batch0["filled"][:, :-1].float()
+        actions0 = batch0["actions"]
+        terminated0 = batch0["terminated"].float()
+        avail_actions0 = batch0["avail_actions"].long()
+        mask0 = batch0["filled"].float()
         mask0[:, 1:] = mask0[:, 1:] * (1 - terminated0[:, :-1])
         # # ----------- batch1 not preferred -----------------
-        actions1 = batch1["actions"][:, :-1]
-        terminated1 = batch1["terminated"][:, :-1].float()
-        avail_actions1 = batch1["avail_actions"][:, :-1].long()
-        mask1 = batch1["filled"][:, :-1].float()
+        actions1 = batch1["actions"]
+        terminated1 = batch1["terminated"].float()
+        avail_actions1 = batch1["avail_actions"].long()
+        mask1 = batch1["filled"].float()
         mask1[:, 1:] = mask1[:, 1:] * (1 - terminated1[:, :-1])
 
         # Calculate estimated Q-Values
         mac_out0 = []
         self.mac.init_hidden(batch0['batch_size'])
-        for t in range(batch0['max_seq_length'] - 1):
+        for t in range(batch0['max_seq_length']):
             agent_outs = self.mac.forward(batch0, t=t)
             mac_out0.append(agent_outs)
         mac_out0 = th.stack(mac_out0, dim=1)
@@ -63,7 +63,7 @@ class MAICPLLearner:
         # Calculate estimated Q-Values
         mac_out1 = []
         self.mac.init_hidden(batch1['batch_size'])
-        for t in range(batch1['max_seq_length'] - 1):
+        for t in range(batch1['max_seq_length']):
             agent_outs = self.mac.forward(batch1, t=t)
             mac_out1.append(agent_outs)
         mac_out1 = th.stack(mac_out1, dim=1)
