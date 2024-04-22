@@ -1,0 +1,48 @@
+# --- COMA specific parameters ---
+
+action_selector: "multinomial"
+epsilon_start: .5
+epsilon_finish: .05
+epsilon_anneal_time: 500000
+mask_before_softmax: False
+
+runner: "parallel"
+
+buffer_size: 32
+off_buffer_size: 70000 # size of the off-policy buffer default: 5000
+batch_size_run: 10 # 10 num of parellel envs
+batch_size: 16
+off_batch_size: 32  # batch_size_train
+
+env_args:
+  state_last_action: True # critic adds last action internally
+
+
+lr: 0.0005
+cpl_lambda: 0.1
+cpl_alpha: 1000
+cpl_constrain_coe: 1.0
+cpl_constrain_type: "pi"  # "ppo"
+
+# use qmix
+mixing_embed_dim: 32
+
+# use COMA
+agent_output_type: "q"
+learner: "cpl_learner"
+q_nstep: 0  # 0 corresponds to default Q, 1 is r + gamma*Q, etc
+
+name: "ACPL"
+
+offline_dataset_dir: "/data/user/kouqian/SMAC410_pref_new/5m_vs_6m_good-medium_1000_30.th"
+offline_dataset_quality: "good-medium"
+pref_segment_pairs: 1000
+use_pref: True
+
+train_reward: False
+max_traj_length: 30
+model_type: "MR"
+action_type: "Discrete"
+reward_train_epoch: 100
+reward_batch_size: 128
+use_reward_hat: False
