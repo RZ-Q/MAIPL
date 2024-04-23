@@ -47,6 +47,9 @@ def run(_run, _config, _log):
     if args.name == 'MAICPL':
         unique_token += '-' + str(args.cpl_lambda) + '-' + str(args.cpl_alpha)
         unique_token_wandb += '-' + str(args.cpl_lambda) + '-' + str(args.cpl_alpha)
+    if args.name == 'DPPO':
+        unique_token += '-' + str(args.dppo_lambda) + '-' + str(args.dppo_alpha)
+        unique_token_wandb += '-' + str(args.dppo_lambda) + '-' + str(args.dppo_alpha)
     if args.name == 'HACPL':
         unique_token += '-' + str(args.cpl_lambda) + '-' + str(args.cpl_alpha) + '-fixorder_' + str(args.fix_order)
         unique_token_wandb += '-' + str(args.cpl_lambda) + '-' + str(args.cpl_alpha) + '-fixorder_' + str(args.fix_order)
@@ -143,13 +146,12 @@ def run_sequential(args, logger):
         th.save(preds, reward_save_path)
     else:
         # ----------------------------train-------------------------------
+        running_log = {}
         while runner.t_env <= args.t_max:
             if runner.t_env >= 4000200:
                 break
 
             th.set_num_threads(8)
-
-            running_log = {}
 
             if not args.use_pref:
                 # # --------------------------- sample for ICQ,BC,OMIGA -------------------------------
@@ -239,7 +241,7 @@ def run_sequential(args, logger):
             elif args.name == "BC":
                 learner.train(off_batch, runner.t_env, running_log)
             # --------------------- CPL --------------------------------
-            elif args.name == "CPL" or args.name == "MAICPL" or args.name == "HACPL":
+            elif args.name == "CPL" or args.name == "MAICPL" or args.name == "HACPL" or args.name == "DPPO":
                 learner.train(off_batch0, off_batch1, runner.t_env, pref_dataset['labels'][sample_number0].to(args.device), running_log)
             
             n_test_runs = max(1, args.test_nepisode // runner.batch_size)

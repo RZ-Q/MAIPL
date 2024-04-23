@@ -4,6 +4,7 @@ from .bc_learner import BCLearner
 from .cpl_learner import CPLLearner
 from .maicpl_learner import MAICPLLearner
 from .hacpl_learner import HACPLLearner
+from .dppo_learner import DPPOLearner
 
 REGISTRY = {}
 
@@ -13,3 +14,4 @@ REGISTRY["bc_learner"] = BCLearner
 REGISTRY["cpl_learner"] = CPLLearner
 REGISTRY["maicpl_learner"] = MAICPLLearner
 REGISTRY["hacpl_learner"] = HACPLLearner
+REGISTRY["dppo_learner"] = DPPOLearner

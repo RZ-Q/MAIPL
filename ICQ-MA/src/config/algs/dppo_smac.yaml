@@ -19,7 +19,8 @@ env_args:
 
 
 lr: 0.0005
-dppo_lamda: 0.1
+dppo_alpha: 100
+dppo_lambda: 0.5
 
 # use qmix
 mixing_embed_dim: 32
@@ -31,7 +32,7 @@ q_nstep: 0  # 0 corresponds to default Q, 1 is r + gamma*Q, etc
 
 name: "DPPO"
 
-offline_dataset_dir: "/data/user/kouqian/SMAC410_pref_new/5m_vs_6m_good-medium_1000_30.th"
+offline_dataset_dir: "/data/user/kouqian/files/MAOfflineDatasets/SMAC410_pref_new/5m_vs_6m_good-medium_1000_30.th"
 offline_dataset_quality: "good-medium"
 pref_segment_pairs: 1000
 use_pref: True
