@@ -30,7 +30,6 @@ class CPLLearner:
         self.agent_optimiser = RMSprop(params=self.agent_params, lr=args.lr, alpha=args.optim_alpha, eps=args.optim_eps)
 
     def train(self, batch0, batch1, t_env, labels, running_log):
-        # TODO: change to mean
         # # ----------- batch0 preferred -----------------
         bs = batch0['batch_size']
         actions0 = batch0["actions"]
