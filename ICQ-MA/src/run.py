@@ -21,6 +21,13 @@ from components.reward_model import RewardModel
 import datetime
 import wandb
 
+from smac.env import StarCraft2Env
+
+def get_agent_own_state_size(env_args):
+    sc_env = StarCraft2Env(**env_args)
+    # qatten parameter setting (only use in qatten)
+    return  4 + sc_env.shield_bits_ally + sc_env.unit_type_bits
+
 
 def run(_run, _config, _log):
 
@@ -53,6 +60,9 @@ def run(_run, _config, _log):
     if args.name == 'HACPL':
         unique_token += '-' + str(args.cpl_lambda) + '-' + str(args.cpl_alpha) + '-fixorder_' + str(args.fix_order)
         unique_token_wandb += '-' + str(args.cpl_lambda) + '-' + str(args.cpl_alpha) + '-fixorder_' + str(args.fix_order)
+    if args.name == 'MADPO':
+        unique_token += '-' + str(args.dpo_lambda) + '-' + str(args.dpo_alpha) + '-' + args.agent_mixer + '-' + args.time_mixer + '-' + args.qatten_type
+        unique_token_wandb += '-' + str(args.dpo_lambda) + '-' + str(args.dpo_alpha) + '-' + args.agent_mixer + '-' + args.time_mixer + '-' + args.qatten_type
     if args.use_reward_hat:
         unique_token += '-' + args.model_type
         unique_token_wandb += '-' + args.model_type
@@ -98,6 +108,7 @@ def run_sequential(args, logger):
     args.n_actions = env_info["n_actions"]
     args.obs_shape = env_info["obs_shape"]
     args.state_shape = env_info["state_shape"]
+    args.agent_own_state_size = get_agent_own_state_size(args.env_args)
     scheme = {
         "state": {"vshape": env_info["state_shape"]},
         "obs": {"vshape": env_info["obs_shape"], "group": "agents"},
@@ -218,7 +229,7 @@ def run_sequential(args, logger):
                 avail_actions_sample = pref_dataset['avail_action'][sample_number1][:, :max_ep_t_h]
                 obs_sample = pref_dataset['obs'][sample_number1][:, :max_ep_t_h]
                 reward_sample = pref_dataset['reward'][sample_number1][:, :max_ep_t_h]
-                state_sample = pref_dataset['state'][sample_number1][:, :max_ep_t_h, 0]
+                state_sample = pref_dataset['state'][sample_number1][:, :max_ep_t_h]
                 terminated_sample = pref_dataset['terminated'][sample_number1][:, :max_ep_t_h]
 
                 off_batch1 = {}
@@ -241,7 +252,7 @@ def run_sequential(args, logger):
             elif args.name == "BC":
                 learner.train(off_batch, runner.t_env, running_log)
             # --------------------- CPL --------------------------------
-            elif args.name == "CPL" or args.name == "MAICPL" or args.name == "HACPL" or args.name == "DPPO":
+            elif args.name == "CPL" or args.name == "MAICPL" or args.name == "HACPL" or args.name == "DPPO" or args.name == "MADPO":
                 learner.train(off_batch0, off_batch1, runner.t_env, pref_dataset['labels'][sample_number0].to(args.device), running_log)
             
             n_test_runs = max(1, args.test_nepisode // runner.batch_size)

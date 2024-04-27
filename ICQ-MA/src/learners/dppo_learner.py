@@ -36,6 +36,8 @@ class DPPOLearner:
         mask0 = batch0["filled"].float()
         mask0[:, 1:] = mask0[:, 1:] * (1 - terminated0[:, :-1])
 
+        actions0_all = th.arange(self.n_actions).unsqueeze(0).unsqueeze(0).unsqueeze(0)\
+            .repeat(actions0.shape[0], actions0.shape[1], actions0.shape[2], 1).to('cuda')
 
         # Calculate estimated Q-Values
         mac_out0 = []
@@ -49,8 +51,7 @@ class DPPOLearner:
         mac_out0 = mac_out0/mac_out0.sum(dim=-1, keepdim=True)
         mac_out0[avail_actions0 == 0] = 0
 
-        distence0 = (mac_out0 * np.sqrt(2) * (1 - \
-            th.nn.functional.one_hot(actions0.squeeze(-1), num_classes=self.n_actions))).sum(-1).sum(-1).unsqueeze(-1)
+        distence0 = (mac_out0 * th.sqrt((actions0_all - actions0) ** 2)).sum(-1).mean(-1).unsqueeze(-1)
         distence0 = - self.dppo_alpha * (distence0 * mask0).sum(1) / mask0.sum(1)
 
         # # ----------- batch1 not preferred -----------------
@@ -59,6 +60,9 @@ class DPPOLearner:
         avail_actions1 = batch1["avail_actions"].long()
         mask1 = batch1["filled"].float()
         mask1[:, 1:] = mask1[:, 1:] * (1 - terminated1[:, :-1])
+
+        actions1_all = th.arange(self.n_actions).unsqueeze(0).unsqueeze(0).unsqueeze(0)\
+            .repeat(actions1.shape[0], actions1.shape[1], actions1.shape[2], 1).to('cuda')
 
         # Calculate estimated Q-Values
         mac_out1 = []
@@ -72,8 +76,7 @@ class DPPOLearner:
         mac_out1 = mac_out1/mac_out1.sum(dim=-1, keepdim=True)
         mac_out1[avail_actions1 == 0] = 0
 
-        distence1 = (mac_out1 * np.sqrt(2) * (1 - \
-            th.nn.functional.one_hot(actions1.squeeze(-1), num_classes=self.n_actions))).sum(-1).sum(-1).unsqueeze(-1)
+        distence1 = (mac_out1 * th.sqrt((actions1_all - actions1) ** 2)).sum(-1).mean(-1).unsqueeze(-1)
         distence1 = - self.dppo_alpha * (distence1 * mask1).sum(1) / mask1.sum(1)
 
         # # ------------- DPPO loss ------------------

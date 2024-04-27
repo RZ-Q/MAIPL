@@ -19,24 +19,31 @@ env_args:
 
 
 lr: 0.0005
-cpl_lambda: 0.1
-cpl_alpha: 1000
-cpl_constrain_coe: 1.0
-cpl_constrain_type: "pi"  # "ppo"
-dppo_alpha: 100
-dppo_lambda: 0.5
+dpo_lambda: 0.1
+dpo_alpha: 1000
 
-distence_type: "actions"  # "pi"
+distence_type: "log_pi"  # "pi", "log_pi", "actions"
 distence_log: True
 
-agent_mixer: "none"  # "qmix", "attention"
-time_mixer: "none"  # "transformer"
+agent_mixer: "attention"  # "none", "attention"
+time_mixer: "attention"  # "none"
+
+# qatten mixer
+n_query_embedding_layer1: 64
+n_query_embedding_layer2: 32
+n_key_embedding_layer1: 32
+n_head_embedding_layer1: 64
+n_head_embedding_layer2: 4
+n_attention_head: 4
+n_constant_value: 32
+qatten_type: "weighted"  # "none"
+traj_feature_rtgs: 4
 
 # use qmix
 mixing_embed_dim: 32
 
 # use COMA
-agent_output_type: "pi_logits"
+agent_output_type: "pi_logits"  # "q"
 learner: "madpo_learner"
 q_nstep: 0  # 0 corresponds to default Q, 1 is r + gamma*Q, etc
 

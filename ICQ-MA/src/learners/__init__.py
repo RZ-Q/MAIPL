@@ -5,6 +5,7 @@ from .cpl_learner import CPLLearner
 from .maicpl_learner import MAICPLLearner
 from .hacpl_learner import HACPLLearner
 from .dppo_learner import DPPOLearner
+from .madpo_learner import MADPOLearner
 
 REGISTRY = {}
 
@@ -15,3 +16,4 @@ REGISTRY["cpl_learner"] = CPLLearner
 REGISTRY["maicpl_learner"] = MAICPLLearner
 REGISTRY["hacpl_learner"] = HACPLLearner
 REGISTRY["dppo_learner"] = DPPOLearner
+REGISTRY["madpo_learner"] = MADPOLearner

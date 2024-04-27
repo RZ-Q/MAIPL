@@ -30,6 +30,7 @@ class CPLLearner:
         self.agent_optimiser = RMSprop(params=self.agent_params, lr=args.lr, alpha=args.optim_alpha, eps=args.optim_eps)
 
     def train(self, batch0, batch1, t_env, labels, running_log):
+        # TODO: change to mean
         # # ----------- batch0 preferred -----------------
         bs = batch0['batch_size']
         actions0 = batch0["actions"]
@@ -53,7 +54,7 @@ class CPLLearner:
 
         pi_taken0 = th.gather(mac_out0, dim=-1, index=actions0)
         pi_taken0[mask0.repeat(1, 1, self.n_agents).unsqueeze(-1) == 0] = 1.0
-        log_pi_taken0 = th.log(pi_taken0).squeeze(-1).sum(-1)
+        log_pi_taken0 = th.log(pi_taken0).squeeze(-1).mean(-1)
 
         # # ----------- batch1 not preferred -----------------
         actions1 = batch1["actions"]
@@ -76,11 +77,11 @@ class CPLLearner:
 
         pi_taken1 = th.gather(mac_out1, dim=-1, index=actions1)
         pi_taken1[mask1.repeat(1, 1, self.n_agents).unsqueeze(-1) == 0] = 1.0
-        log_pi_taken1 = th.log(pi_taken1).squeeze(-1).sum(-1)
+        log_pi_taken1 = th.log(pi_taken1).squeeze(-1).mean(-1)
 
         # # ------------- CPL loss ------------------
-        adv0 = (self.cpl_alpha * log_pi_taken0 * mask0.squeeze(-1)).sum(1)
-        adv1 = (self.cpl_alpha * log_pi_taken1 * mask1.squeeze(-1)).sum(1)
+        adv0 = (self.cpl_alpha * log_pi_taken0 * mask0.squeeze(-1)).sum(1) / mask0.sum(1).squeeze(-1)
+        adv1 = (self.cpl_alpha * log_pi_taken1 * mask1.squeeze(-1)).sum(1) / mask1.sum(1).squeeze(-1)
         logit10 = adv1 - self.cpl_lambda * adv0
         logit01 = adv0 - self.cpl_lambda * adv1
         max21 = th.clamp(-logit10, min=0, max=None)
@@ -90,12 +91,6 @@ class CPLLearner:
         loss = labels.squeeze(-1) * nlp21 + (1 - labels.squeeze(-1)) * nlp12
         # add constrain item
         loss = loss.mean()
-        # mac_out0[mask0.repeat(1, 1, self.n_agents).unsqueeze(-1).repeat(1, 1, 1, self.n_actions) == 0] = 1.0
-        # mac_out1[mask1.repeat(1, 1, self.n_agents).unsqueeze(-1).repeat(1, 1, 1, self.n_actions) == 0] = 1.0
-        # pi_logpi0 = mac_out0 * th.log(mac_out0 + 1e-6) * mask0.unsqueeze(-1)
-        # pi_logpi1 = mac_out1 * th.log(mac_out1 + 1e-6) * mask1.unsqueeze(-1)
-        # pi_log_pi = th.cat([pi_logpi0, pi_logpi1], dim=1).sum(-1)
-        # loss = loss.mean() + self.cpl_constrain_coe * pi_log_pi.mean()
 
         self.agent_optimiser.zero_grad()
         loss.backward()
