@@ -1,7 +1,6 @@
 import torch
 import numpy as np
 import transformers
-from tensorboardX.writer import SummaryWriter
 from components.MAPT.mat.algorithms.reward_model.models.MR import MR
 from components.MAPT.mat.algorithms.reward_model.models.NMR import NMR
 from components.MAPT.mat.algorithms.reward_model.models.lstm import LSTMRewardModel
@@ -94,8 +93,8 @@ class RewardModel:
             shuffled_idx = np.random.permutation(eval_bs)
             interval = int(eval_bs / train_bs) + 1
             for j in range(interval):
-                start_pt0 = i * train_bs
-                end_pt0 = min((i + 1) * train_bs, eval_bs)
+                start_pt0 = j * train_bs
+                end_pt0 = min((j + 1) * train_bs, eval_bs)
                 sample_number0 = shuffled_idx[start_pt0: end_pt0]
                 sample_number1 = sample_number0 + eval_bs
                 train_batch['observations0'] = pref_dataset['obs'][sample_number0][:, :self.max_traj_length].to(self.device)

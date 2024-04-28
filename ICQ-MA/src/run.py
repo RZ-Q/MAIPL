@@ -11,7 +11,6 @@ from types import SimpleNamespace as SN
 from utils.logging import Logger
 from utils.timehelper import time_left, time_str
 from os.path import dirname, abspath
-import h5py
 from learners import REGISTRY as le_REGISTRY
 from runners import REGISTRY as r_REGISTRY
 from controllers import REGISTRY as mac_REGISTRY
@@ -47,7 +46,7 @@ def run(_run, _config, _log):
 
     # unique_token = "{}__{}".format(args.name, datetime.datetime.now().strftime("%Y-%m-%d_%H-%M-%S"))
     unique_token = args.name + '-' + args.env_args['map_name']+ '-' + str(args.pref_segment_pairs) + '-' + args.offline_dataset_quality + '-' + str(args.seed)
-    unique_token_wandb = args.name + '-' + args.env_args['map_name']+ '-' + str(args.pref_segment_pairs) + '-' + args.offline_dataset_quality
+    unique_token_wandb = args.name + '-' + str(args.pref_segment_pairs) + '-' + args.offline_dataset_quality
     if args.name == 'CPL':
         unique_token += '-' + str(args.cpl_lambda) + '-' + str(args.cpl_alpha)
         unique_token_wandb += '-' + str(args.cpl_lambda) + '-' + str(args.cpl_alpha)
@@ -72,7 +71,7 @@ def run(_run, _config, _log):
         tb_exp_direc = os.path.join(tb_logs_direc, "{}").format(unique_token)
         logger.setup_tb(tb_exp_direc)
     if args.use_wandb:
-        wandb.init(project="ICQ", group=unique_token_wandb, name=str(args.seed))
+        wandb.init(project="ICQ" + args.env_args['map_name'], group=unique_token_wandb, name=str(args.seed))
 
     logger.setup_sacred(_run)
 
@@ -159,7 +158,7 @@ def run_sequential(args, logger):
         # ----------------------------train-------------------------------
         running_log = {}
         while runner.t_env <= args.t_max:
-            if runner.t_env >= 4000200:
+            if runner.t_env >= 2000200:
                 break
 
             th.set_num_threads(8)
@@ -177,7 +176,6 @@ def run_sequential(args, logger):
                 reward_sample = pref_dataset['reward'][sample_number][:, :max_ep_t_h]
                 state_sample = pref_dataset['state'][sample_number][:, :max_ep_t_h]
                 terminated_sample = pref_dataset['terminated'][sample_number][:, :max_ep_t_h]
-                mask_sample = pref_dataset['mask'][sample_number][:, :max_ep_t_h]
 
 
                 off_batch = {}
@@ -190,7 +188,6 @@ def run_sequential(args, logger):
                 off_batch['state'] = state_sample.to(args.device)
                 off_batch['terminated'] = terminated_sample.to(args.device)
                 off_batch['max_seq_length'] = max_ep_t_h.to(args.device)
-                off_batch['mask'] = mask_sample.to(args.device)
                 off_batch['batch_size'] = args.off_batch_size
             
             else:

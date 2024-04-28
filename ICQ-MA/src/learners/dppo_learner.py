@@ -51,7 +51,7 @@ class DPPOLearner:
         mac_out0 = mac_out0/mac_out0.sum(dim=-1, keepdim=True)
         mac_out0[avail_actions0 == 0] = 0
 
-        distence0 = (mac_out0 * th.sqrt((actions0_all - actions0) ** 2)).sum(-1).mean(-1).unsqueeze(-1)
+        distence0 = (mac_out0 * th.sqrt((actions0_all - actions0) ** 2) * avail_actions0).sum(-1).mean(-1).unsqueeze(-1)
         distence0 = - self.dppo_alpha * (distence0 * mask0).sum(1) / mask0.sum(1)
 
         # # ----------- batch1 not preferred -----------------
@@ -76,7 +76,7 @@ class DPPOLearner:
         mac_out1 = mac_out1/mac_out1.sum(dim=-1, keepdim=True)
         mac_out1[avail_actions1 == 0] = 0
 
-        distence1 = (mac_out1 * th.sqrt((actions1_all - actions1) ** 2)).sum(-1).mean(-1).unsqueeze(-1)
+        distence1 = (mac_out1 * th.sqrt((actions1_all - actions1) ** 2) * avail_actions1).sum(-1).mean(-1).unsqueeze(-1)
         distence1 = - self.dppo_alpha * (distence1 * mask1).sum(1) / mask1.sum(1)
 
         # # ------------- DPPO loss ------------------
