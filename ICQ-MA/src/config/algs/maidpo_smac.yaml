@@ -25,8 +25,6 @@ dpo_alpha: 1000
 distence_type: "log_pi"  # "pi", "log_pi", "actions"
 distence_log: True
 
-agent_mixer: "attention"  # "none", "attention"
-time_mixer: "attention"  # "none"
 
 # qatten mixer
 n_query_embedding_layer1: 64
@@ -36,7 +34,7 @@ n_head_embedding_layer1: 64
 n_head_embedding_layer2: 4
 n_attention_head: 4
 n_constant_value: 32
-qatten_type: "weighted"  # "none" "weighted"
+qatten_type: "none"  # "none" "weighted"
 traj_feature_rtgs: 4
 
 # use qmix
@@ -44,13 +42,13 @@ mixing_embed_dim: 32
 
 # use COMA
 agent_output_type: "pi_logits"  # "q"
-learner: "madpo_learner"
+learner: "maidpo_learner"
 q_nstep: 0  # 0 corresponds to default Q, 1 is r + gamma*Q, etc
 
-name: "MADPO"
+name: "MAIDPO"
 
-offline_dataset_dir: "/home/kouqian/buffer/pref_datasets/3m_good_1000_16.th"
-offline_dataset_quality: "good"
+offline_dataset_dir: "/home/kouqian/buffer/pref_datasets/3m_poor_1000_16.th"
+offline_dataset_quality: "poor"
 pref_segment_pairs: 1000
 use_pref: True
 
@@ -62,3 +60,4 @@ reward_train_epoch: 100
 reward_batch_size: 128
 use_reward_hat: False
 train_predicter: False
+reward_dir: "/home/kouqian/buffer/pref_datasets/3m_poor_1000_16_MultiPrefTransformerDivide_agent_reward.th"

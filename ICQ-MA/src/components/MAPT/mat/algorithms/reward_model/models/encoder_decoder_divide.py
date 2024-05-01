@@ -51,12 +51,12 @@ class SelfAttention(nn.Module):
             casual_mask = casual_mask.to(dtype=torch.bool)
             attn_mask = ops.get_attention_mask(m, B)
             # att = att.masked_fill(casual_mask == 0, float('-inf'))
-            att = torch.where(casual_mask, att, -10000.0)
+            att = torch.where(casual_mask, att.double(), -10000.0)
             att = att + attn_mask
         att = F.softmax(att, dim=-1)
         if self.config.use_dropout:
             att = self.atten_dropout(att)
-        y = att @ v  # (B, nh, L, L) x (B, nh, L, hs) -> (B, nh, L, hs)
+        y = att.float() @ v  # (B, nh, L, L) x (B, nh, L, hs) -> (B, nh, L, hs)
         y = y.transpose(1, 2).contiguous().view(B, L, D)  # re-assemble all head outputs side by side
         # output projection
         y = self.proj(y)

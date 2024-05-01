@@ -60,8 +60,11 @@ def run(_run, _config, _log):
         unique_token += '-' + str(args.cpl_lambda) + '-' + str(args.cpl_alpha) + '-fixorder_' + str(args.fix_order)
         unique_token_wandb += '-' + str(args.cpl_lambda) + '-' + str(args.cpl_alpha) + '-fixorder_' + str(args.fix_order)
     if args.name == 'MADPO':
-        unique_token += '-' + str(args.dpo_lambda) + '-' + str(args.dpo_alpha) + '-' + args.agent_mixer + '-' + args.time_mixer + '-' + args.qatten_type
-        unique_token_wandb += '-' + str(args.dpo_lambda) + '-' + str(args.dpo_alpha) + '-' + args.agent_mixer + '-' + args.time_mixer + '-' + args.qatten_type
+        unique_token += '-' + str(args.dpo_lambda) + '-' + str(args.dpo_alpha) + '-' + args.distence_type + '-' + args.agent_mixer + '-' + args.time_mixer + '-' + args.qatten_type
+        unique_token_wandb += '-' + str(args.dpo_lambda) + '-' + str(args.dpo_alpha) + '-' + args.distence_type + '-' + args.agent_mixer + '-' + args.time_mixer + '-' + args.qatten_type
+    if args.name == 'MAIDPO':
+        unique_token += '-' + str(args.dpo_lambda) + '-' + str(args.dpo_alpha) + '-' + args.distence_type
+        unique_token_wandb += '-' + str(args.dpo_lambda) + '-' + str(args.dpo_alpha) + '-' + args.distence_type + '-' + 'global_att' + '-dense'
     if args.use_reward_hat:
         unique_token += '-' + args.model_type
         unique_token_wandb += '-' + args.model_type
@@ -151,8 +154,13 @@ def run_sequential(args, logger):
         # ----------------------------train reward-------------------------------
         reward_model = RewardModel(args)
         preds = reward_model.train(pref_dataset)
-        #TODO: add reward norm
         reward_save_path = args.offline_dataset_dir[:-3] + '_' + args.model_type + '.th'
+        th.save(preds, reward_save_path)
+    elif args.train_predicter:
+        # ----------------------------train predicter-------------------------------
+        reward_model = RewardModel(args)
+        preds = reward_model.train_predicter(pref_dataset)
+        reward_save_path = args.offline_dataset_dir[:-3] + '_' + args.model_type + '_agent_reward.th'
         th.save(preds, reward_save_path)
     else:
         # ----------------------------train-------------------------------
@@ -241,6 +249,11 @@ def run_sequential(args, logger):
                 off_batch1['max_seq_length'] = max_ep_t_h.to(args.device)
                 off_batch1['batch_size'] = int(args.off_batch_size / 2)
 
+                if args.name == "MAIDPO":
+                    agent_reward = th.load(args.reward_dir).to(args.device)
+                    off_batch0['reward'] = agent_reward[sample_number0][:, :max_ep_t_h]
+                    off_batch1['reward'] = agent_reward[sample_number1][:, :max_ep_t_h]
+
             # --------------------- ICQ-MA --------------------------------
             if args.name == "ICQ-MA":
                 learner.train_critic(off_batch, best_batch=None, running_log=running_log, t_env=runner.t_env)
@@ -249,7 +262,7 @@ def run_sequential(args, logger):
             elif args.name == "BC":
                 learner.train(off_batch, runner.t_env, running_log)
             # --------------------- CPL --------------------------------
-            elif args.name == "CPL" or args.name == "MAICPL" or args.name == "HACPL" or args.name == "DPPO" or args.name == "MADPO":
+            elif args.name in ["CPL", "MAICPL", "HACPL", "DPPO", "MADPO", "MAIDPO"]:
                 learner.train(off_batch0, off_batch1, runner.t_env, pref_dataset['labels'][sample_number0].to(args.device), running_log)
             
             n_test_runs = max(1, args.test_nepisode // runner.batch_size)

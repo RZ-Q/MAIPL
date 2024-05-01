@@ -101,8 +101,8 @@ class RewardModel:
                 train_batch['actions0'] = pref_dataset['action'][sample_number0][:, :self.max_traj_length].to(self.device)
                 train_batch['observations1'] = pref_dataset['obs'][sample_number1][:, :self.max_traj_length].to(self.device)
                 train_batch['actions1'] = pref_dataset['action'][sample_number1][:, :self.max_traj_length].to(self.device)
-                train_batch['timesteps0'] = torch.arange(0,self.max_traj_length).unsqueeze(0).repeat(train_bs, 1).to(self.device)
-                train_batch['timesteps1'] = torch.arange(0,self.max_traj_length).unsqueeze(0).repeat(train_bs, 1).to(self.device)
+                train_batch['timesteps0'] = torch.arange(0,self.max_traj_length).unsqueeze(0).repeat(end_pt0 - start_pt0, 1).to(self.device)
+                train_batch['timesteps1'] = torch.arange(0,self.max_traj_length).unsqueeze(0).repeat(end_pt0 - start_pt0, 1).to(self.device)
                 train_batch['masks0'] = mask[sample_number0][:, :self.max_traj_length].repeat(1, 1, self.n_agents).to(self.device)
                 train_batch['masks1'] = mask[sample_number1][:, :self.max_traj_length].repeat(1, 1, self.n_agents).to(self.device)
                 train_batch['labels'] = pref_dataset['labels'][sample_number0].to(self.device)
@@ -115,4 +115,48 @@ class RewardModel:
         
         preds0, preds1 = self.reward_model.get_reward_for_offline(eval_batch)
 
+        return torch.cat([preds0, preds1], dim=0)
+    
+    def train_predicter(self, pref_dataset):
+        train_batch = {}
+        eval_batch = {}
+        mask = pref_dataset['filled'].float()
+        mask[:, 1:] = mask[:, 1:] * (1 - pref_dataset["terminated"][:, :-1])
+        train_bs = int(self.args.reward_batch_size / 2)
+        eval_bs = int(pref_dataset['obs'].shape[0] / 2)
+        eval_batch['observations0'] = pref_dataset['obs'][:eval_bs, :self.max_traj_length].to(self.device)
+        eval_batch['observations1'] = pref_dataset['obs'][eval_bs:, :self.max_traj_length].to(self.device)
+        eval_batch['actions0'] = pref_dataset['action'][:eval_bs, :self.max_traj_length].to(self.device)
+        eval_batch['actions1'] = pref_dataset['action'][eval_bs:, :self.max_traj_length].to(self.device)
+        eval_batch['timesteps0'] = torch.arange(0,self.max_traj_length).unsqueeze(0).repeat(eval_bs, 1).to(self.device)
+        eval_batch['timesteps1'] = torch.arange(0,self.max_traj_length).unsqueeze(0).repeat(eval_bs, 1).to(self.device)
+        eval_batch['masks0'] = mask[:eval_bs, :self.max_traj_length].repeat(1, 1, self.n_agents).to(self.device)
+        eval_batch['masks1'] = mask[eval_bs:, :self.max_traj_length].repeat(1, 1, self.n_agents).to(self.device)
+        eval_batch['labels'] = pref_dataset['labels'].to(self.device)
+        eval_batch['labels'] = torch.cat([1 - eval_batch['labels'], eval_batch['labels']], dim=-1)
+
+        for i in range(self.train_epoch):
+            shuffled_idx = np.random.permutation(eval_bs)
+            interval = int(eval_bs / train_bs) + 1
+            for j in range(interval):
+                start_pt0 = j * train_bs
+                end_pt0 = min((j + 1) * train_bs, eval_bs)
+                sample_number0 = shuffled_idx[start_pt0: end_pt0]
+                sample_number1 = sample_number0 + eval_bs
+                train_batch['observations0'] = pref_dataset['obs'][sample_number0][:, :self.max_traj_length].to(self.device)
+                train_batch['actions0'] = pref_dataset['action'][sample_number0][:, :self.max_traj_length].to(self.device)
+                train_batch['observations1'] = pref_dataset['obs'][sample_number1][:, :self.max_traj_length].to(self.device)
+                train_batch['actions1'] = pref_dataset['action'][sample_number1][:, :self.max_traj_length].to(self.device)
+                train_batch['timesteps0'] = torch.arange(0,self.max_traj_length).unsqueeze(0).repeat(end_pt0 - start_pt0, 1).to(self.device)
+                train_batch['timesteps1'] = torch.arange(0,self.max_traj_length).unsqueeze(0).repeat(end_pt0 - start_pt0, 1).to(self.device)
+                train_batch['masks0'] = mask[sample_number0][:, :self.max_traj_length].repeat(1, 1, self.n_agents).to(self.device)
+                train_batch['masks1'] = mask[sample_number1][:, :self.max_traj_length].repeat(1, 1, self.n_agents).to(self.device)
+                train_batch['labels'] = pref_dataset['labels'][sample_number0].to(self.device)
+                train_batch['labels'] = torch.cat([1 - train_batch['labels'], train_batch['labels']], dim=-1)
+                metrics = self.reward_model.train(train_batch)
+            
+            acc, preds0, preds1= self.reward_model.evaluation_agent_acc(eval_batch)
+            if acc > 0.97:
+                break
+            
         return torch.cat([preds0, preds1], dim=0)

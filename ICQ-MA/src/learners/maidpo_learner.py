@@ -13,7 +13,7 @@ import torch.nn.functional as F
 import numpy as np
 import wandb
 
-class MADPOLearner:
+class MAIDPOLearner:
     def __init__(self, mac, scheme, logger, args):
         self.args = args
         self.n_agents = args.n_agents
@@ -24,13 +24,6 @@ class MADPOLearner:
         self.dpo_alpha = args.dpo_alpha
         self.distence_type = args.distence_type
         self.distence_log = args.distence_log
-        self.agent_mixer = None
-        self.time_mixer = None
-
-        if args.agent_mixer == "attention":
-            self.agent_mixer = QattenMixer(args)
-        if args.time_mixer == "attention":
-            self.time_mixer = TimeattenMixer(args)
 
         self.log_stats_t = -self.args.learner_log_interval - 1
 
@@ -82,29 +75,26 @@ class MADPOLearner:
         mac_out1 = mac_out1/mac_out1.sum(dim=-1, keepdim=True)
         mac_out1[avail_actions1 == 0] = 0
 
+        # check predict reward acc
+        predict = (1.0 * (rewards0.sum(1).sum(1) < rewards1.sum(1).sum(1)))
+        acc = (predict == labels).sum() / labels.shape[0]
+        print(acc)
+
+        # TODO: agent dense lables
+        # agent_labels = th.softmax(th.cat([rewards0.sum(1), rewards1.sum(1)], dim=-1), dim=-1).max(-1)[1]
+
         if self.distence_type == "log_pi":
             pi_taken0 = th.gather(mac_out0, dim=-1, index=actions0)
             pi_taken0[mask0.repeat(1, 1, self.n_agents).unsqueeze(-1) == 0] = 1.0
-            log_pi_taken0 = th.log(pi_taken0)
+            log_pi_taken0 = th.log(pi_taken0).squeeze(-1)
 
             pi_taken1 = th.gather(mac_out1, dim=-1, index=actions1)
             pi_taken1[mask1.repeat(1, 1, self.n_agents).unsqueeze(-1) == 0] = 1.0
-            log_pi_taken1 = th.log(pi_taken1)
+            log_pi_taken1 = th.log(pi_taken1).squeeze(-1)
 
-            if self.time_mixer == None:
-                distence0 = (self.agent_mixer(-self.dpo_alpha * log_pi_taken0, states0) * mask0).sum(1) / mask0.sum(1)
-                distence1 = (self.agent_mixer(-self.dpo_alpha * log_pi_taken1, states1) * mask1).sum(1) / mask1.sum(1)
-            else:
-                interval0 = int(rewards0.shape[1] / self.args.traj_feature_rtgs) + 1
-                rtgs0 = rewards0.cumsum(dim=1).flip(dims=[1])[:, 0::interval0].squeeze(-1)
-                trajs0 = th.cat([states0[:, 0], actions0[:, 0].squeeze(-1), rtgs0], dim=-1)
-                distence0 = self.agent_mixer(-self.dpo_alpha * log_pi_taken0, states0)
-                distence0 = self.time_mixer(distence0, states0, trajs0)
-                interval1 = int(rewards1.shape[1] / self.args.traj_feature_rtgs) + 1
-                rtgs1 = rewards1.cumsum(dim=1).flip(dims=[1])[:, 0::interval1].squeeze(-1)
-                trajs1 = th.cat([states1[:, 0], actions1[:, 0].squeeze(-1), rtgs1], dim=-1)
-                distence1 = self.agent_mixer(-self.dpo_alpha * log_pi_taken1, states1)
-                distence1 = self.time_mixer(distence1, states1, trajs1)
+            distence0 = (-self.dpo_alpha * log_pi_taken0 * mask0).sum(1) / mask0.sum(1)
+            distence1 = (-self.dpo_alpha * log_pi_taken1 * mask1).sum(1) / mask1.sum(1)
+
         elif self.distence_type == "actions":
             actions1_all = th.arange(self.n_actions).unsqueeze(0).unsqueeze(0).unsqueeze(0)\
             .repeat(actions1.shape[0], actions1.shape[1], actions1.shape[2], 1).to('cuda')
@@ -112,30 +102,33 @@ class MADPOLearner:
             distence0 = (mac_out0 * th.sqrt((actions1_all - actions0) ** 2) * avail_actions0).sum(-1)
             distence1 = (mac_out1 * th.sqrt((actions1_all - actions1) ** 2) * avail_actions1).sum(-1)
 
-            if self.time_mixer == None:
-                distence0 = (self.agent_mixer(self.dpo_alpha * distence0, states0) * mask0).sum(1) / mask0.sum(1)
-                distence1 = (self.agent_mixer(self.dpo_alpha * distence1, states1) * mask1).sum(1) / mask1.sum(1)
-            else:
-                interval0 = int(rewards0.shape[1] / self.args.traj_feature_rtgs) + 1
-                rtgs0 = rewards0.cumsum(dim=1).flip(dims=[1])[:, 0::interval0].squeeze(-1)
-                trajs0 = th.cat([states0[:, 0], actions0[:, 0].squeeze(-1), rtgs0], dim=-1)
-                distence0 = self.agent_mixer(self.dpo_alpha * distence0, states0)
-                distence0 = self.time_mixer(distence0, states0, trajs0)
-                interval1 = int(rewards1.shape[1] / self.args.traj_feature_rtgs) + 1
-                rtgs1 = rewards1.cumsum(dim=1).flip(dims=[1])[:, 0::interval1].squeeze(-1)
-                trajs1 = th.cat([states1[:, 0], actions1[:, 0].squeeze(-1), rtgs1], dim=-1)
-                distence1 = self.agent_mixer(self.dpo_alpha * distence1, states1)
-                distence1 = self.time_mixer(distence1, states1, trajs1)
-        # # ------------- DPO loss ------------------
-        logit10 = (-distence1) - self.dpo_lambda * (-distence0)
-        logit01 = (-distence0) - self.dpo_lambda * (-distence1)
-        max21 = th.clamp(-logit10, min=0, max=None)
-        max12 = th.clamp(-logit01, min=0, max=None)
-        nlp21 = th.log(th.exp(-max21) + th.exp(-logit10 - max21)) + max21
-        nlp12 = th.log(th.exp(-max12) + th.exp(-logit01 - max12)) + max12
-        loss = labels * nlp21 + (1 - labels) * nlp12
-        loss = loss.mean()
+            distence0 = (self.dpo_alpha * distence0 * mask0).sum(1) / mask0.sum(1)
+            distence1 = (self.dpo_alpha * distence1 * mask1).sum(1) / mask1.sum(1)
 
+        # # ------------- DPO loss ------------------
+        # logit10 = (-distence1) - self.dpo_lambda * (-distence0)
+        # logit01 = (-distence0) - self.dpo_lambda * (-distence1)
+        # max21 = th.clamp(-logit10, min=0, max=None)
+        # max12 = th.clamp(-logit01, min=0, max=None)
+        # nlp21 = th.log(th.exp(-max21) + th.exp(-logit10 - max21)) + max21
+        # nlp12 = th.log(th.exp(-max12) + th.exp(-logit01 - max12)) + max12
+        # loss = agent_labels * nlp21 + (1 - agent_labels) * nlp12
+        # loss = loss.mean()
+        # # ------------- Dense loss -----------------
+        losses = []
+        for i in range(self.n_agents):
+            for j in range(i + 1, self.n_agents):
+                logit10 = (-distence1[:, j]) - self.dpo_lambda * (-distence0[:, i])
+                logit01 = (-distence0[:, i]) - self.dpo_lambda * (-distence1[:, j])
+                max21 = th.clamp(-logit10, min=0, max=None)
+                max12 = th.clamp(-logit01, min=0, max=None)
+                nlp21 = th.log(th.exp(-max21) + th.exp(-logit10 - max21)) + max21
+                nlp12 = th.log(th.exp(-max12) + th.exp(-logit01 - max12)) + max12
+                agent_labels = 1.0 * (rewards0.sum(1)[:, i] < rewards1.sum(1)[:, j]).squeeze(-1)
+                loss = agent_labels * nlp21 + (1 - agent_labels) * nlp12
+                losses.append(loss.mean())
+
+        loss = sum(losses) / len(losses)
         self.agent_optimiser.zero_grad()
         loss.backward()
         grad_norm = th.nn.utils.clip_grad_norm_(self.agent_params, self.args.grad_norm_clip)
@@ -152,23 +145,11 @@ class MADPOLearner:
 
     def cuda(self):
         self.mac.cuda()
-        if self.agent_mixer != None:
-            self.agent_mixer.cuda()
-        if self.time_mixer != None:
-            self.time_mixer.cuda()
     
     def save_models(self, path):
         self.mac.save_models(path)
         th.save(self.optimiser.state_dict(), "{}/opt.th".format(path))
-        if self.agent_mixer != None:
-            th.save(self.agent_mixer.state_dict(), "{}/agent_mixer.th".format(path))
-        if self.time_mixer != None:
-            th.save(self.time_mixer.state_dict(), "{}/time_mixer.th".format(path))
     
     def load_models(self, path):
         self.mac.load_models(path)
         self.optimiser.load_state_dict(th.load("{}/opt.th".format(path), map_location=lambda storage, loc: storage))
-        if self.agent_mixer != None:
-            self.agent_mixer.load_state_dict(th.load("{}/agent_mixer.th".format(path), map_location=lambda storage, loc: storage))
-        if self.time_mixer != None:
-            self.time_mixer.load_state_dict(th.load("{}/time_mixer.th".format(path), map_location=lambda storage, loc: storage))

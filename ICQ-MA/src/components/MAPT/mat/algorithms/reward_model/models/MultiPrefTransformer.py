@@ -23,7 +23,7 @@ class MultiPrefTransformer(object):
         config.reverse_state_action = False
         config.agent_individual = False
         config.use_dropout = True
-        config.use_lstm = True
+        config.use_lstm = False
         config.add_obs_action = False
         config.drop_agent_layer = False
         config.use_highway = False
@@ -157,6 +157,41 @@ class MultiPrefTransformer(object):
         labels = labels.max(-1).indices.unsqueeze(-1)
         acc = (pred==labels).sum() / labels.shape[0]
         return acc
+    
+    def evaluation_agent_acc(self, batch):
+        self.trans.eval()
+        ####################### get eval data from batch
+        obs_0 = batch['observations0']
+        act_0 = batch['actions0']
+        obs_1 = batch['observations1']
+        act_1 = batch['actions1']
+        timestep_0 = batch['timesteps0']
+        timestep_1 = batch['timesteps1']
+        labels = batch['labels']
+        mask_0 = batch['masks0']
+        mask_1 = batch['masks1']
+        B, T, N, _ = batch['observations0'].shape
+        B, T, N, _ = batch['actions0'].shape
+        ####################### copmpute loss and grad
+        with torch.no_grad():
+            trans_pred_0 = self.trans(obs_0, act_0, timestep_0, attn_mask=mask_0)
+            trans_pred_1 = self.trans(obs_1, act_1, timestep_1, attn_mask=mask_1)
+        ####################### add all agents rewards as global reward(or individual reward)
+        if self.config.agent_individual:
+            sum_trans_pred_0 = trans_pred_0.permute(0, 2, 1, 3).reshape(B * N, -1)
+            sum_trans_pred_1 = trans_pred_1.permute(0, 2, 1, 3).reshape(B * N, -1)
+            labels = labels.reshape(B * N, -1)
+        else:
+            sum_trans_pred_0 = torch.sum(trans_pred_0, dim=-2).reshape(B, -1)
+            sum_trans_pred_1 = torch.sum(trans_pred_1, dim=-2).reshape(B, -1)
+        ####################### add all tiemsteps value to evaluate a sequencec
+        sum_trans_pred_0 = torch.sum(sum_trans_pred_0.reshape(B, T), dim=1).reshape(-1, 1)
+        sum_trans_pred_1 = torch.sum(sum_trans_pred_1.reshape(B, T), dim=1).reshape(-1, 1)
+
+        pred = 1.0 * (sum_trans_pred_0 < sum_trans_pred_1)
+        labels = labels.max(-1).indices.unsqueeze(-1)
+        acc = (pred==labels).sum() / labels.shape[0]
+        return acc, trans_pred_0, trans_pred_1
 
 
     def evaluation(self, batch):
@@ -256,6 +291,25 @@ class MultiPrefTransformer(object):
         trans_preds1 = torch.stack(trans_preds1, dim=1).mean(2)
 
         return trans_preds0.squeeze(1), trans_preds1.squeeze(1)
+
+    def get_agent_reward_for_offline(self, batch):
+        self.trans.eval()
+
+        obs0 = batch['observations0']
+        act0 = batch['actions0']
+        timestep0 = batch['timesteps0']
+
+        obs1 = batch['observations1']
+        act1 = batch['actions1']
+        timestep1 = batch['timesteps1']
+
+        mask_0 = batch['masks0']
+        mask_1 = batch['masks1']
+
+        trans_preds0 = self.trans(obs0, act0, timestep0, attn_mask=mask_0)
+        trans_preds1 = self.trans(obs1, act1, timestep1, attn_mask=mask_1)
+
+        return trans_preds0, trans_preds1
 
     ####################### my add method
     def save_model(self, save_path, save_idx):

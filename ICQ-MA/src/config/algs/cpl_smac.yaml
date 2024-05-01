@@ -20,7 +20,7 @@ env_args:
 
 lr: 0.0005
 cpl_lambda: 0.1
-cpl_alpha: 1000
+cpl_alpha: 1
 cpl_constrain_coe: 1.0
 cpl_constrain_type: "pi"  # "ppo"
 
@@ -34,8 +34,8 @@ q_nstep: 0  # 0 corresponds to default Q, 1 is r + gamma*Q, etc
 
 name: "CPL"
 
-offline_dataset_dir: "/data/user/kouqian/files/MAOfflineDatasets/SMAC410_pref_new/5m_vs_6m_good-medium_1000_30.th"
-offline_dataset_quality: "good-medium"
+offline_dataset_dir: "/home/kouqian/buffer/pref_datasets/3m_good_1000_16.th"
+offline_dataset_quality: "good"
 pref_segment_pairs: 1000
 use_pref: True
 
@@ -46,3 +46,4 @@ action_type: "Discrete"
 reward_train_epoch: 100
 reward_batch_size: 128
 use_reward_hat: False
+train_predicter: False
